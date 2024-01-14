@@ -1,0 +1,1791 @@
+---
+output: 
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+---
+
+
+# module analysis               
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+#necessary packages and functions  
+source("I:/Shared_win/projects/RNA_normal/analysis.r")
+```
+
+
+
+## data preparation                 
+                     
+new202310 rename:                          
+                     
+B1:  AD：/storage/xuhepingLab/0.share/projects/20230529_SS2_LYN                                                       
+B2:  GBM：/storage/hedanyangLab/zhaojinghong/projects/25-LYN.20221212.bulk             
+B3:  EAE：/storage/hedanyangLab/zhaojinghong/projects/31-LYN.20230106.bulk               
+B4:  cuprizone：/storage/hedanyangLab/zhaojinghong/projects/17-LYN.20221010.bulk           
+B5:  SIMPLE: /storage/hedanyangLab/zhaojinghong/projects/37-LYN.20230219.bulk               
+          
+Ctrl as C         
+X_Spp1_N as N         
+X_Spp1_P as P          
+
+### test counts            
+
+```{r}
+load_mat <- function(dat){
+  mat_raw <- read.table(dat, header = TRUE, stringsAsFactors = F, sep = "\t")
+  rownames(mat_raw) <- mat_raw$gene_id
+  mat_raw <- mat_raw[,2:ncol(mat_raw)]
+  mat_raw <- as.matrix(mat_raw)
+  mat_raw <- edgeR::cpm(mat_raw)
+  mat_raw <- round(mat_raw)
+  list_pc <- 'I:/Shared_win/genomics/mouse/GRCm38_vM25/gtf_detail/list_pc.lv1_2'
+  id_pc <- as.vector(unlist(read.table(list_pc)))
+  mat_pc <- mat_raw[id_pc,]
+  return(mat_pc)
+}
+```
+
+
+
+```{r}
+mat_pc <- list(B1=load_mat("../output_new/AD/RNAseq.20230530_SS2_LYN.counts.gene.matrix"),
+                 B2=load_mat("../output_new/GBM/RNAseq.LYN.20221212.counts.gene.matrix"),
+               B3=load_mat("../output_new/EAE/RNAseq.LYN.20230106.counts.gene.matrix"),
+               B4=load_mat("../output_new/cuprizone/RNAseq.LYN.20221010.Spp1.counts.gene.matrix"),
+               B5=load_mat("../output_new/SIMPLE/RNAseq.LYN.20230219.counts.gene.matrix"))
+```
+
+
+```{r}
+lapply(mat_pc, dim)
+```
+
+
+```{r}
+lapply(mat_pc, colnames)
+```
+
+```{r}
+# reorder as C:N:P
+#mat_pc$B1 <- mat_pc$B1[,c(grep("Ctrl",colnames(mat_pc$B1)),
+#                          grep("Spp1_N",colnames(mat_pc$B1)),
+#                          grep("Spp1_P",colnames(mat_pc$B1)),)]
+
+mat_pc <- lapply(mat_pc, function(mat){
+  
+  mat[,c(grep("^Ctrl|^C...GFP.N|B1.C",colnames(mat),perl = T),
+         grep("_N$|^S...GFP.N|B1.N",colnames(mat),perl = T),
+         grep("_P$|^S...GFP.P|B1.P",colnames(mat),perl = T))]
+})
+```
+
+
+```{r}
+lapply(mat_pc, dim)
+```
+
+```{r}
+lapply(mat_pc, colnames)
+```
+
+
+```{r}
+names(mat_pc)
+```
+
+
+```{r}
+# rename
+for(NN in names(mat_pc)){
+  
+  colnames(mat_pc[[NN]]) <- c(paste0(paste0(NN,".C."),1:length(grep("^Ctrl|^C...GFP.N|B1.C",colnames(mat_pc[[NN]]),perl = T))),
+                              paste0(paste0(NN,".N."),1:length(grep("_N$|^S...GFP.N|B1.N",colnames(mat_pc[[NN]]),perl = T))),
+                              paste0(paste0(NN,".P."),1:length(grep("_P$|^S...GFP.P|B1.P",colnames(mat_pc[[NN]]),perl = T))))
+
+}
+```
+
+
+```{r}
+lapply(mat_pc, colnames)
+```
+
+
+```{r fig.height=12, fig.width=12, message=FALSE, warning=FALSE}
+cowplot::plot_grid(
+plotlist = lapply(mat_pc,function(mat){
+  
+  ggplot(reshape2::melt(data.frame(mat)), aes(x=variable, y=log2(value+1))) + geom_point() +
+    geom_boxplot() +
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="red") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1)) + labs(title = "data distribution - CPM", x="")
+  
+  
+  
+}), ncol = 2)
+```
+
+
+#### runPCA                          
+
+```{r}
+pp.PCA <- function(mat,Name="PCA", Color=c("#006BD7","#D7770D","#FF4848")){
+  rv <- rowVars(mat)
+  selt <- order(rv, decreasing = TRUE)[seq_len(2000)]
+  pca2 <- stats::prcomp(t(mat[selt,]), scale.=TRUE, center=TRUE)
+  
+  pca_d <- as.data.frame(pca2$x)
+  
+  pca_d[,"condition"] = gsub("[.]1|[.]2|[.]3|[.]4|[.]5","",x=colnames(mat),perl = T, fixed = F)
+  pca_d[,"batch"] = as.vector(unlist(sapply(colnames(mat), function(x){strsplit(x,split = ".")[[1]][1]})))
+  pca_d[,"replicate"] = as.vector(unlist(sapply(colnames(mat), function(x){strsplit(x,split = ".")[[1]][3]})))
+  
+  ggplot(data=pca_d, aes(x=PC1, y=PC2, color=condition)) +
+    geom_point(size=3.5) +
+    ggrepel::geom_text_repel(mapping = aes(label=colnames(mat)),size=2.5, max.overlaps = 500) + labs(title = Name) +
+    scale_colour_manual(values = Color) + guides(color=guide_legend(reverse = F)) + theme_classic()
+}
+```
+
+
+```{r fig.width=16.4, fig.height=9}
+cowplot::plot_grid(
+cowplot::plot_grid(
+plotlist = lapply(mat_pc, pp.PCA, Name="PCA of CPM")[1:2],
+ncol = 3),
+cowplot::plot_grid(
+plotlist = lapply(mat_pc, pp.PCA, Name="PCA of CPM")[3:5],
+ncol = 3),
+ncol = 1)
+```
+
+```{r fig.width=9.6, fig.height=8}
+
+pp.PCA(cbind(mat_pc$B1,
+             mat_pc$B2,
+             mat_pc$B3,
+             mat_pc$B4,
+             mat_pc$B5
+             ),Color = rep(c("#006BD7","#D7770D","#FF4848"),5), Name = "PCA of CPM")
+
+pp.PCA(cbind(log2(mat_pc$B1+1),
+             log2(mat_pc$B2+1),
+             log2(mat_pc$B3+1),
+             log2(mat_pc$B4+1),
+             log2(mat_pc$B5+1)
+             ),Color = rep(c("#006BD7","#D7770D","#FF4848"),5), Name = "PCA of log2(CPM+1)")
+```
+
+
+```{r}
+lapply(mat_pc, colnames)[[1]]
+gsub("[.]1|[.]2|[.]3|[.]4|[.]5","",x=lapply(mat_pc, colnames)[[1]],perl = T, fixed = F)
+```
+
+
+#### batch corrected           
+
+```{r paged.print=FALSE}
+mat_pc.combine <- cbind(mat_pc$B1,
+                        mat_pc$B2,
+                        mat_pc$B3,
+                        mat_pc$B4,
+                        mat_pc$B5
+                        )
+
+cnt.df <- data.frame(row.names = colnames(mat_pc.combine),
+                     batch = as.vector(unlist(sapply(colnames(mat_pc.combine), function(x){strsplit(x,split = "[.]")[[1]][1]}))),
+                     condition1 = gsub("[.]1|[.]2|[.]3|[.]4|[.]5","",x=colnames(mat_pc.combine),perl = T, fixed = F))
+
+cnt.df$condition2 <- cnt.df$condition1
+
+cnt.df$condition2[grep("[.]C",cnt.df$condition2)] <- "Ctrl"
+cnt.df
+```
+
+
+```{r}
+mat_pc.combine.crt <- sva::ComBat_seq(counts = as.matrix(mat_pc.combine),
+                               batch = cnt.df$batch,
+                               group = cnt.df$condition2)
+```
+
+
+```{r fig.width=9.6, fig.height=8}
+
+pp.PCA(mat_pc.combine.crt,Color = rep(c("#006BD7","#D7770D","#FF4848"),5), Name = "PCA of CPM.crt")
+
+pp.PCA(log2(mat_pc.combine.crt+1),Color = rep(c("#006BD7","#D7770D","#FF4848"),5), Name = "PCA of log2(CPM.crt+1)")
+```
+
+
+### test TPM          
+
+```{r}
+load_matt <- function(dat){
+  matt_raw <- read.table(dat, header = TRUE, stringsAsFactors = F, sep = "\t")
+  rownames(matt_raw) <- matt_raw$gene_id
+  matt_raw <- matt_raw[,2:ncol(matt_raw)]
+  matt_raw <- as.matrix(matt_raw)
+  #matt_raw <- edgeR::cpm(matt_raw)
+  #matt_raw <- round(matt_raw)
+  list_pc <- 'I:/Shared_win/genomics/mouse/GRCm38_vM25/gtf_detail/list_pc.lv1_2'
+  id_pc <- as.vector(unlist(read.table(list_pc)))
+  matt_pc <- matt_raw[id_pc,]
+  return(matt_pc)
+}
+```
+
+
+```{r}
+matt_pc <- list(B1=load_matt("../output_new/AD/RNAseq.20230530_SS2_LYN.tpm.gene.matrix"),
+                B2=load_matt("../output_new/GBM/RNAseq.LYN.20221212.tpm.gene.matrix"),
+                B3=load_matt("../output_new/EAE/RNAseq.LYN.20230106.tpm.gene.matrix"),
+                B4=load_matt("../output_new/cuprizone/RNAseq.LYN.20221010.Spp1.tpm.gene.matrix"),
+                B5=load_matt("../output_new/SIMPLE/RNAseq.LYN.20230219.tpm.gene.matrix"))
+```
+
+
+```{r}
+lapply(matt_pc, dim)
+```
+
+
+```{r}
+lapply(matt_pc, colnames)
+```
+
+
+```{r}
+# reorder as C:N:P
+#matt_pc$B1 <- matt_pc$B1[,c(grep("Ctrl",colnames(matt_pc$B1)),
+#                          grep("Spp1_N",colnames(matt_pc$B1)),
+#                          grep("Spp1_P",colnames(matt_pc$B1)),)]
+
+matt_pc <- lapply(matt_pc, function(matt){
+  
+  matt[,c(grep("^Ctrl|^C...GFP.N|B1.C",colnames(matt),perl = T),
+         grep("_N$|^S...GFP.N|B1.N",colnames(matt),perl = T),
+         grep("_P$|^S...GFP.P|B1.P",colnames(matt),perl = T))]
+})
+```
+
+
+```{r}
+lapply(matt_pc, dim)
+```
+
+
+```{r}
+lapply(matt_pc, colnames)
+```
+
+
+```{r}
+names(matt_pc)
+```
+
+
+```{r}
+# rename
+for(NN in names(matt_pc)){
+  
+  colnames(matt_pc[[NN]]) <- c(paste0(paste0(NN,".C."),1:length(grep("^Ctrl|^C...GFP.N|B1.C",colnames(matt_pc[[NN]]),perl = T))),
+                              paste0(paste0(NN,".N."),1:length(grep("_N$|^S...GFP.N|B1.N",colnames(matt_pc[[NN]]),perl = T))),
+                              paste0(paste0(NN,".P."),1:length(grep("_P$|^S...GFP.P|B1.P",colnames(matt_pc[[NN]]),perl = T))))
+
+}
+```
+
+
+```{r}
+lapply(matt_pc, colnames)
+```
+
+
+```{r fig.height=12, fig.width=12, message=FALSE, warning=FALSE}
+cowplot::plot_grid(
+plotlist = lapply(matt_pc,function(matt){
+  
+  ggplot(reshape2::melt(data.frame(matt)), aes(x=variable, y=log2(value+1))) + geom_point() +
+    geom_boxplot() +
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="red") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1)) + labs(title = "data distribution - TPM", x="")
+  
+  
+  
+}), ncol = 2)
+```
+
+
+```{r fig.width=9.6, fig.height=12}
+cowplot::plot_grid(
+plotlist = lapply(matt_pc, pp.PCA, Name="PCA of TPM"),
+ncol = 2)
+```
+
+
+```{r fig.width=9.6, fig.height=8}
+
+pp.PCA(cbind(matt_pc$B1,
+             matt_pc$B2,
+             matt_pc$B3,
+             matt_pc$B4,
+             matt_pc$B5
+             ),Color = rep(c("#006BD7","#D7770D","#FF4848"),5), Name = "PCA of TPM")
+
+pp.PCA(cbind(log2(matt_pc$B1+1),
+             log2(matt_pc$B2+1),
+             log2(matt_pc$B3+1),
+             log2(matt_pc$B4+1),
+             log2(matt_pc$B5+1)
+             ),Color = rep(c("#006BD7","#D7770D","#FF4848"),5), Name = "PCA of log2(TPM+1)")
+```
+
+
+```{r fig.width=12, fig.height=4}
+# check X/Y-link genes (only Y- remain in protein-coding list)
+pheatmap::pheatmap(cbind(log2(matt_pc$B1+1),
+             log2(matt_pc$B2+1),
+             log2(matt_pc$B3+1),
+             log2(matt_pc$B4+1),
+             log2(matt_pc$B5+1)
+             )[c("Actb","Uty","Ddx3y","Eif2s3y","Kdm5d"),],
+             gaps_col = c(4,8,12,16,20,24,27,30,33,37,40,43,47,51),
+             cluster_cols = F, cluster_rows = F)
+```
+
+
+seems like X-link genes not in protein coding list, anyway Y- seems enough here                             
+
+
+```{r eval=FALSE, include=FALSE}
+list_pc <- 'I:/Shared_win/genomics/mouse/GRCm38_vM25/gtf_detail/list_pc.lv1_2'
+id_pc <- as.vector(unlist(read.table(list_pc)))
+
+```
+
+
+```{r}
+#c("Xist","Tsix") %in% id_pc
+```
+
+
+```{r paged.print=FALSE}
+matt_pc.combine <- cbind(matt_pc$B1,
+                         matt_pc$B2,
+                         matt_pc$B3,
+                         matt_pc$B4,
+                         matt_pc$B5
+                        )
+
+cnt.df <- data.frame(row.names = colnames(matt_pc.combine),
+                     batch = as.vector(unlist(sapply(colnames(matt_pc.combine), function(x){strsplit(x,split = "[.]")[[1]][1]}))),
+                     condition1 = gsub("[.]1|[.]2|[.]3|[.]4|[.]5","",x=colnames(matt_pc.combine),perl = T, fixed = F))
+
+cnt.df$condition2 <- cnt.df$condition1
+
+cnt.df$condition2[grep("[.]C",cnt.df$condition2)] <- "Ctrl"
+cnt.df
+```
+
+
+```{r}
+matt_pc.combine.crt <- sva::ComBat_seq(counts = as.matrix(matt_pc.combine),
+                               batch = cnt.df$batch,
+                               group = cnt.df$condition2)
+```
+
+
+```{r fig.width=9.6, fig.height=8}
+
+pp.PCA(matt_pc.combine.crt,Color = rep(c("#006BD7","#D7770D","#FF4848"),5), Name = "PCA of TPM.crt")
+
+pp.PCA(log2(matt_pc.combine.crt+1),Color = rep(c("#006BD7","#D7770D","#FF4848"),5), Name = "PCA of log2(TPM.crt+1)")
+```
+
+
+using log2(correctedCPM/TPM + 1) for downstream modeling                  
+
+
+
+
+```{r eval=FALSE, include=FALSE}
+write.csv(mat_pc.combine, "matrix.pc.cb.CPM.csv")
+write.csv(mat_pc.combine.crt, "matrix.pc.cb.CPM_crt.csv")
+
+write.csv(matt_pc.combine, "matrix.pc.cb.TPM.csv")
+write.csv(matt_pc.combine.crt, "matrix.pc.cb.TPM_crt.csv")
+```
+
+
+##### test the differential result for each batch in individual script         
+
+
+## WGCNA     
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+#necessary packages and functions  
+library(WGCNA)
+collectGarbage()
+enableWGCNAThreads()
+```
+
+
+```{r}
+head(matt_pc.combine.crt)
+```
+
+
+### PCA plot           
+
+save pdf             
+
+```{r}
+library(ellipse)
+pp.PCA.m <- function(mat,Name="PCA", Color=c("#006BD7","#D7770D","#FF4848"),Size=4.5, Alpha=0.75, Font=2, ellipse=TRUE, label=TRUE, Condition=NULL){
+  rv <- rowVars(mat)
+  selt <- order(rv, decreasing = TRUE)[seq_len(2000)]
+  pca2 <- stats::prcomp(t(mat[selt,]), scale.=TRUE, center=TRUE)
+  
+  pca_d <- as.data.frame(pca2$x)
+  
+  pca_d[,"condition"] = gsub("[.]1|[.]2|[.]3|[.]4|[.]5","",x=colnames(mat),perl = T, fixed = F)
+  pca_d[,"batch"] = as.vector(unlist(sapply(colnames(mat), function(x){strsplit(x,split = ".")[[1]][1]})))
+  pca_d[,"replicate"] = as.vector(unlist(sapply(colnames(mat), function(x){strsplit(x,split = ".")[[1]][3]})))
+  
+  pca_d$condition2 = pca_d$condition
+  
+  if(!is.null(Condition)){
+    pca_d$condition2 = Condition
+  }
+  
+  centroids <- aggregate(cbind(PC1,PC2)~condition2, pca_d, mean)
+  rownames(centroids) <- centroids$condition2
+  conf.rgn <- do.call(rbind, lapply(unique(pca_d$condition2),function(t)
+    data.frame(condition=as.character(t),
+               ellipse::ellipse(cov(pca_d[pca_d$condition2==t,1:2]),
+                                centre=as.matrix(centroids[t,2:3]),
+                                level=0.95),
+               stringsAsFactors = FALSE)))
+  
+  
+  xxx <- ggplot(data=pca_d, aes(x=PC1, y=PC2, color=condition)) +
+    geom_point(size=Size,alpha=Alpha)  +
+  #stat_ellipse(level = 0.85,show.legend = F) +
+  #ggrepel::geom_text_repel(mapping = aes(label=colnames(mat)),size=Font, show.legend = F) + 
+    labs(title = Name) +
+    scale_colour_manual(values = Color) + guides(color=guide_legend(reverse = F)) + 
+    theme_classic()
+
+  if(label==TRUE){
+    xxx <- xxx+ggrepel::geom_text_repel(mapping = aes(label=colnames(mat)),size=Font, show.legend = F, max.overlaps = 50)
+  }
+  
+  if(ellipse==TRUE){
+    xxx <- xxx+geom_path(data=conf.rgn, show.legend = F)
+  }
+  xxx
+}
+```
+
+
+```{r fig.width=14.5, fig.height=8}
+cowplot::plot_grid(
+cowplot::plot_grid(
+plotlist = lapply(mat_pc, pp.PCA.m, Name="PCA of CPM", ellipse=T, label=F)[1:2],
+ncol = 3),
+cowplot::plot_grid(
+plotlist = lapply(mat_pc, pp.PCA.m, Name="PCA of CPM", ellipse=T, label=F)[3:5],
+ncol = 3),
+ncol = 1)
+```
+
+
+```{r fig.width=14.5, fig.height=8}
+cowplot::plot_grid(
+cowplot::plot_grid(
+plotlist = lapply(mat_pc, pp.PCA.m, Name="PCA of CPM", ellipse=F, label=T)[1:2],
+ncol = 3),
+cowplot::plot_grid(
+plotlist = lapply(mat_pc, pp.PCA.m, Name="PCA of CPM", ellipse=F, label=T)[3:5],
+ncol = 3),
+ncol = 1)
+```
+
+
+```{r fig.width=14.5, fig.height=8}
+cowplot::plot_grid(
+cowplot::plot_grid(
+plotlist = lapply(matt_pc, pp.PCA.m, Name="PCA of TPM", ellipse=T, label=F)[1:2],
+ncol = 3),
+cowplot::plot_grid(
+plotlist = lapply(matt_pc, pp.PCA.m, Name="PCA of TPM", ellipse=T, label=F)[3:5],
+ncol = 3),
+ncol = 1)
+```
+
+
+```{r fig.width=14.5, fig.height=8}
+cowplot::plot_grid(
+cowplot::plot_grid(
+plotlist = lapply(matt_pc, pp.PCA.m, Name="PCA of TPM", ellipse=F, label=T)[1:2],
+ncol = 3),
+cowplot::plot_grid(
+plotlist = lapply(matt_pc, pp.PCA.m, Name="PCA of TPM", ellipse=F, label=T)[3:5],
+ncol = 3),
+ncol = 1)
+```
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("./result.new/PCA.individual.CPM.pdf",
+       plot = cowplot::plot_grid(
+cowplot::plot_grid(
+plotlist = lapply(mat_pc, pp.PCA.m, Name="PCA of CPM", ellipse=F, label=T)[1:2],
+ncol = 3),
+cowplot::plot_grid(
+plotlist = lapply(mat_pc, pp.PCA.m, Name="PCA of CPM", ellipse=F, label=T)[3:5],
+ncol = 3),
+ncol = 1),
+       width = 14.5,height = 8)
+
+ggsave("./result.new/PCA.individual.TPM.pdf",
+       plot = cowplot::plot_grid(
+cowplot::plot_grid(
+plotlist = lapply(matt_pc, pp.PCA.m, Name="PCA of TPM", ellipse=F, label=T)[1:2],
+ncol = 3),
+cowplot::plot_grid(
+plotlist = lapply(matt_pc, pp.PCA.m, Name="PCA of TPM", ellipse=F, label=T)[3:5],
+ncol = 3),
+ncol = 1),
+       width = 14.5,height = 8)
+
+#
+ggsave("./result.new/PCA.individual.CPM.s.pdf",
+       plot = cowplot::plot_grid(
+cowplot::plot_grid(
+plotlist = lapply(mat_pc, pp.PCA.m, Name="PCA of CPM", ellipse=T, label=F)[1:2],
+ncol = 3),
+cowplot::plot_grid(
+plotlist = lapply(mat_pc, pp.PCA.m, Name="PCA of CPM", ellipse=T, label=F)[3:5],
+ncol = 3),
+ncol = 1),
+       width = 11.8,height = 6)
+
+ggsave("./result.new/PCA.individual.TPM.s.pdf",
+       plot = cowplot::plot_grid(
+cowplot::plot_grid(
+plotlist = lapply(matt_pc, pp.PCA.m, Name="PCA of TPM", ellipse=T, label=F)[1:2],
+ncol = 3),
+cowplot::plot_grid(
+plotlist = lapply(matt_pc, pp.PCA.m, Name="PCA of TPM", ellipse=T, label=F)[3:5],
+ncol = 3),
+ncol = 1),
+       width = 11.8,height = 6)
+```
+
+
+```{r fig.width=9.6, fig.height=8}
+pp.PCA.m(log2(matt_pc.combine.crt+1),Color = rep(c("#006BD7","#D7770D","#FF4848"),5), Name = "PCA of log2(TPM.crt+1)", ellipse = F, label = T)
+pp.PCA.m(log2(mat_pc.combine.crt+1),Color = rep(c("#006BD7","#D7770D","#FF4848"),5), Name = "PCA of log2(CPM.crt+1)", ellipse = F, label = T)
+```
+
+
+```{r}
+library(ellipse)
+pp.PCAn <- function(mat,Name="PCA", Color=c("#006BD7","#D7770D","#FF4848"),Size=4.5, Alpha=0.75, Font=2, 
+                    ellipse=TRUE, label=TRUE, Condition=NULL){
+  rv <- rowVars(mat)
+  selt <- order(rv, decreasing = TRUE)[seq_len(2000)]
+  pca2 <- stats::prcomp(t(mat[selt,]), scale.=TRUE, center=TRUE)
+  
+  pca_d <- as.data.frame(pca2$x)
+  
+  pca_d[,"condition"] = gsub("[.]1|[.]2|[.]3|[.]4|[.]5","",x=colnames(mat),perl = T, fixed = F)
+  pca_d[,"batch"] = as.vector(unlist(sapply(colnames(mat), function(x){strsplit(x,split = ".",fixed = T)[[1]][1]})))
+  pca_d[,"replicate"] = as.vector(unlist(sapply(colnames(mat), function(x){strsplit(x,split = ".",fixed = T)[[1]][3]})))
+  
+  pca_d$condition2 = pca_d$condition
+  
+  if(!is.null(Condition)){
+    pca_d$condition2 = Condition
+  }
+  
+  centroids <- aggregate(cbind(PC1,PC2)~condition2, pca_d, mean)
+  rownames(centroids) <- centroids$condition2
+  conf.rgn <- do.call(rbind, lapply(unique(pca_d$condition2),function(t)
+    data.frame(condition=as.character(t),
+               ellipse::ellipse(cov(pca_d[pca_d$condition2==t,1:2]),
+                                centre=as.matrix(centroids[t,2:3]),
+                                level=0.95),
+               stringsAsFactors = FALSE)))
+  
+  
+  xxx <- ggplot(data=pca_d, aes(x=PC1, y=PC2, color=condition)) +
+    geom_point(aes(shape=batch),size=Size,alpha=Alpha, show.legend = T)  +
+  #stat_ellipse(level = 0.85,show.legend = F) +
+  #ggrepel::geom_text_repel(mapping = aes(label=colnames(mat)),size=Font, show.legend = F) + 
+    labs(title = Name, x="PC1", y="PC2") +
+    scale_colour_manual(values = c(rep(Color,4),Color[1])) + guides(color=guide_legend(reverse = F)) + 
+    guides(color=FALSE) +
+    scale_shape_manual(values = c(0,2,5,1,6)) +
+    theme_classic()
+
+  if(label==TRUE){
+    xxx <- xxx+ggrepel::geom_text_repel(mapping = aes(label=colnames(mat)),size=Font, show.legend = F, max.overlaps = 50)
+  }
+  
+  if(ellipse==TRUE){
+    xxx <- xxx+geom_path(data=conf.rgn, show.legend = F)
+  }
+  xxx
+}
+```
+
+
+```{r fig.height=8, fig.width=9.6, message=FALSE, warning=FALSE}
+pp.PCAn(log2(matt_pc.combine.crt+1),Color = rep(c("#006BD7","#D7770D","#FF4848"),5), Name = "PCA of log2(TPM.crt+1)", ellipse = T, label = F, Condition = cnt.df$condition2)
+pp.PCAn(log2(mat_pc.combine.crt+1),Color = rep(c("#006BD7","#D7770D","#FF4848"),5), Name = "PCA of log2(CPM.crt+1)", ellipse = T, label = F, Condition = cnt.df$condition2)
+```
+
+
+
+```{r}
+library(ellipse)
+pp.PCAn.test <- function(mat,Name="PCA", Color=c("#006BD7","#D7770D","#FF4848"),Size=4.5, Alpha=0.75, Font=2, 
+                    ellipse=TRUE, label=TRUE, Condition=NULL,
+                    PCx="PC3",PCy="PC4"){
+  rv <- rowVars(mat)
+  selt <- order(rv, decreasing = TRUE)[seq_len(2000)]
+  pca2 <- stats::prcomp(t(mat[selt,]), scale.=TRUE, center=TRUE)
+  
+  pca_d <- as.data.frame(pca2$x)
+  
+  pca_d[,"condition"] = gsub("[.]1|[.]2|[.]3|[.]4|[.]5","",x=colnames(mat),perl = T, fixed = F)
+  pca_d[,"batch"] = as.vector(unlist(sapply(colnames(mat), function(x){strsplit(x,split = ".",fixed = T)[[1]][1]})))
+  pca_d[,"replicate"] = as.vector(unlist(sapply(colnames(mat), function(x){strsplit(x,split = ".",fixed = T)[[1]][3]})))
+  
+  pca_d$condition2 = pca_d$condition
+  
+  if(!is.null(Condition)){
+    pca_d$condition2 = Condition
+  }
+  
+  centroids <- aggregate(cbind(get(PCx),get(PCy))~condition2, pca_d, mean)
+  rownames(centroids) <- centroids$condition2
+  conf.rgn <- do.call(rbind, lapply(unique(pca_d$condition2),function(t)
+    data.frame(condition=as.character(t),
+               ellipse::ellipse(cov(pca_d[pca_d$condition2==t,3:4]),
+                                centre=as.matrix(centroids[t,2:3]),
+                                level=0.95),
+               stringsAsFactors = FALSE)))
+  
+  
+  xxx <- ggplot(data=pca_d, aes(x=get(PCx), y=get(PCy), color=condition)) +
+    geom_point(aes(shape=batch),size=Size,alpha=Alpha, show.legend = T)  +
+  #stat_ellipse(level = 0.85,show.legend = F) +
+  #ggrepel::geom_text_repel(mapping = aes(label=colnames(mat)),size=Font, show.legend = F) + 
+    labs(title = Name, x=PCx, y=PCy) +
+    scale_colour_manual(values = c(rep(Color,4),Color[1])) + guides(color=guide_legend(reverse = F)) + 
+    guides(color=FALSE) +
+    scale_shape_manual(values = c(0,2,5,1,6)) +
+    theme_classic()
+
+  if(label==TRUE){
+    xxx <- xxx+ggrepel::geom_text_repel(mapping = aes(label=colnames(mat)),size=Font, show.legend = F, max.overlaps = 50)
+  }
+  
+  if(ellipse==TRUE){
+    xxx <- xxx+geom_path(data=conf.rgn, show.legend = F)
+  }
+  xxx
+}
+```
+
+
+```{r fig.height=8, fig.width=9.6, message=FALSE, warning=FALSE}
+pp.PCAn.test(log2(matt_pc.combine.crt+1),Color = rep(c("#006BD7","#D7770D","#FF4848"),5), Name = "PCA of log2(TPM.crt+1)", ellipse = T, label = F, Condition = cnt.df$condition2,
+        PCx = "PC3", PCy = "PC4")
+pp.PCAn.test(log2(mat_pc.combine.crt+1),Color = rep(c("#006BD7","#D7770D","#FF4848"),5), Name = "PCA of log2(CPM.crt+1)", ellipse = T, label = F, Condition = cnt.df$condition2,
+        PCx = "PC3", PCy = "PC4")
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+ggsave("./result.new/PCA.merged.CPM_corrected.pdf",
+       plot = pp.PCA.m(log2(mat_pc.combine.crt+1),Color = rep(c("#006BD7","#D7770D","#FF4848"),5), Name = "PCA of log2(CPM.crt+1)", ellipse = F, label = T),
+       width = 9.6,height = 8)
+
+ggsave("./result.new/PCA.merged.TPM_corrected.pdf",
+       plot = pp.PCA.m(log2(matt_pc.combine.crt+1),Color = rep(c("#006BD7","#D7770D","#FF4848"),5), Name = "PCA of log2(TPM.crt+1)", ellipse = F, label = T),
+       width = 9.6,height = 8)
+
+#
+ggsave("./result.new/PCA.merged.TPM_corrected.s.pdf",
+       plot = pp.PCAn(log2(matt_pc.combine.crt+1),Color = rep(c("#006BD7","#D7770D","#FF4848"),5), Name = "PCA of log2(TPM.crt+1)", 
+                      ellipse = T, label = F, Condition = cnt.df$condition2, Size = 2.5),
+       width = 6,height = 5.4)
+ggsave("./result.new/PCA.merged.CPM_corrected.s.pdf",
+       plot = pp.PCAn(log2(mat_pc.combine.crt+1),Color = rep(c("#006BD7","#D7770D","#FF4848"),5), Name = "PCA of log2(CPM.crt+1)", 
+                      ellipse = T, label = F, Condition = cnt.df$condition2, Size = 2.5),
+       width = 6,height = 5.4)
+
+
+```
+
+
+
+### test             
+
+```{r paged.print=FALSE}
+cnt.df
+```
+
+
+```{r}
+#
+selt.top <- order(rowVars(matt_pc.combine.crt), decreasing = TRUE)[seq_len(8000)]
+mat.test <- matt_pc.combine.crt[selt.top,]
+
+#
+idx.filt <- list()
+for(NN in unique(cnt.df$condition1)){
+  idx.filt[[NN]] <- rowMeans(matt_pc.combine[rownames(mat.test),grep(NN,colnames(mat.test))]) > 15 &
+                        rowSums(matt_pc.combine[rownames(mat.test),grep(NN,colnames(mat.test))]>15) >=3
+}
+
+#
+idx.filt.0 <- Reduce(function(x,y){x|y},idx.filt)
+mat.test <- mat.test[idx.filt.0,]
+
+mat.test <- log2(mat.test +1)
+```
+
+
+```{r}
+dim(matt_pc.combine.crt)
+dim(mat.test)
+```
+
+```{r}
+head(mat.test)
+```
+
+
+```{r eval=FALSE, include=FALSE}
+write.csv(mat.test,"./matrix.filt_for_WGCNA.log2.TPM.crt.csv")
+```
+
+
+```{r}
+check.outlier <- c("Ltf","S100a8","S100a9","Ngp","Camp","Trem3","Lcn2")
+```
+
+
+```{r}
+matt_pc.combine[c(check.outlier,"Lag3"),]
+```
+
+
+```{r}
+c(check.outlier,"Lag3") %in% rownames(mat.test)
+```
+
+```{r warning=FALSE, fig.width=9,fig.height=6}
+par(mfrow=c(2,2))
+plot(x=rowMeans(mat_pc.combine.crt),
+     y=rowVars(mat_pc.combine.crt), log="xy", 
+     xlim=c(1e-2,3e+04),  
+     ylim=c(1e-2,1e+11) ,
+     main="unfiltered (TPM.crt)", xlab="rowMeans",ylab="rowVariations")
+
+plot(x=rowMeans(2^(mat.test+1)),
+     y=rowVars(2^(mat.test+1)), log="xy", 
+     xlim=c(1e-2,4e+04), 
+     ylim=c(1e-2,1e+11) ,
+     main="filtered (TPM.crt)", xlab="rowMeans",ylab="rowVariations")
+
+plot(x=rowMeans(log2(mat_pc.combine.crt+1) ),
+     y=rowVars(log2(mat_pc.combine.crt+1) ), log="xy", 
+     xlim=c(0.02,15), ylim=c(0.01,50),
+     main="unfiltered (log2(TPM.crt+1) )", xlab="rowMeans",ylab="rowVariations")
+
+plot(x=rowMeans(mat.test),
+     y=rowVars(mat.test), log="xy", 
+     xlim=c(0.02,15), ylim=c(0.01,50) ,
+     main="filtered (log2(TPM.crt+1) )", xlab="rowMeans",ylab="rowVariations")
+```
+
+
+
+```{r}
+pdf("./result.new/matrix_filtering.pdf",
+    width = 7.5,height = 6)
+par(mfrow=c(2,2))
+plot(x=rowMeans(mat_pc.combine.crt),
+     y=rowVars(mat_pc.combine.crt), log="xy", 
+     xlim=c(1e-2,3e+04),  
+     ylim=c(1e-2,1e+11) , pch=20, cex=0.4, col = rgb(1,2,1, 60, maxColorValue = 255),
+     main="unfiltered (TPM.crt)", xlab="rowMeans",ylab="rowVariations")
+
+plot(x=rowMeans(2^(mat.test+1)),
+     y=rowVars(2^(mat.test+1)), log="xy", 
+     xlim=c(1e-1,4e+04), 
+     ylim=c(1e-2,1e+11) ,pch=20, cex=0.4, col = rgb(1,2,1, 60, maxColorValue = 255),
+     main="filtered (TPM.crt)", xlab="rowMeans",ylab="rowVariations")
+
+plot(x=rowMeans(log2(mat_pc.combine.crt+1) ),
+     y=rowVars(log2(mat_pc.combine.crt+1) ), log="xy", 
+     xlim=c(0.02,15), ylim=c(0.01,50),pch=20, cex=0.4, col = rgb(1,2,1, 60, maxColorValue = 255),
+     main="unfiltered (log2(TPM.crt+1) )", xlab="rowMeans",ylab="rowVariations")
+
+plot(x=rowMeans(mat.test),
+     y=rowVars(mat.test), log="xy", 
+     xlim=c(0.1,15), ylim=c(0.01,50) ,pch=20, cex=0.4, col = rgb(1,2,1, 60, maxColorValue = 255),
+     main="filtered (log2(TPM.crt+1) )", xlab="rowMeans",ylab="rowVariations")
+dev.off()
+```
+
+
+```{r}
+matt_pc.crt <- list(B1=matt_pc.combine.crt[,grep("B1",colnames(matt_pc.combine.crt))],
+                    B2=matt_pc.combine.crt[,grep("B2",colnames(matt_pc.combine.crt))],
+                    B3=matt_pc.combine.crt[,grep("B3",colnames(matt_pc.combine.crt))],
+                    B4=matt_pc.combine.crt[,grep("B4",colnames(matt_pc.combine.crt))],
+                    B5=matt_pc.combine.crt[,grep("B5",colnames(matt_pc.combine.crt))]
+                    )
+```
+
+```{r fig.height=12, fig.width=12, message=FALSE, warning=FALSE}
+cowplot::plot_grid(
+plotlist = lapply(matt_pc.crt,function(matt){
+  
+  ggplot(reshape2::melt(data.frame(matt)), aes(x=variable, y=log2(value+1))) + geom_point() +
+    geom_boxplot() +
+    stat_summary(fun=mean, geom="point", shape=18, size=3, color="red") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1)) + labs(title = "data distribution - TPM.crt", x="")
+  
+  
+  
+}), ncol = 2)
+```
+
+
+
+
+### run        
+
+
+```{r fig.width=10, fig.height=7.5}
+par(cex=0.75, mar=c(0,5,2,0))
+#topN <- 2000
+
+plot(hclust(dist(t(mat.test )), method = "average"), 
+#plot(hclust(dist(t(mat.test )), method = "ward.D2"), 
+     main = paste0("Sample clustering to detect ourliers, filtered ",nrow(mat.test)," pcgenes, log2(TPM.crt+1)"),
+     sub="", xlab = "", cex.lab= 1.5, cex.axis = 1.5, cex.main = 2)
+#abline(h = 15, col="red")
+```
+
+
+```{r}
+datExpr <- t(mat.test)
+sampleTree <- hclust(dist(datExpr), method = "average")
+#sampleTree <- hclust(dist(datExpr), method = "ward.D2")
+```
+
+
+```{r paged.print=FALSE}
+cnt.df
+```
+
+
+
+```{r paged.print=FALSE}
+datTraits <- data.frame(row.names = rownames(cnt.df),
+                        #Ctrl = grepl("Ctrl",cnt.df$condition2),
+                        B1.C = grepl("B1.C",cnt.df$condition1),
+                        B1.N = grepl("B1.N",cnt.df$condition1),
+                        B1.P = grepl("B1.P",cnt.df$condition1),
+                        B2.C = grepl("B2.C",cnt.df$condition1),
+                        B2.N = grepl("B2.N",cnt.df$condition1),
+                        B2.P = grepl("B2.P",cnt.df$condition1),
+                        B3.C = grepl("B3.C",cnt.df$condition1),
+                        B3.N = grepl("B3.N",cnt.df$condition1),
+                        B3.P = grepl("B3.P",cnt.df$condition1),
+                        B4.C = grepl("B4.C",cnt.df$condition1),
+                        B4.N = grepl("B4.N",cnt.df$condition1),
+                        B4.P = grepl("B4.P",cnt.df$condition1),
+                        B5.C = grepl("B5.C",cnt.df$condition1),
+                        B5.N = grepl("B5.N",cnt.df$condition1),
+                        B5.P = grepl("B5.P",cnt.df$condition1))
+
+datTraits[datTraits==TRUE] <- 1
+datTraits[datTraits==FALSE] <- 0
+
+datTraits
+
+```
+
+
+```{r fig.height=7.5, fig.width=3.6}
+pheatmap::pheatmap(datTraits, cluster_rows = F, cluster_cols = F, main = "Trait matrix",
+                   display_numbers = T, number_format = "%.0f", legend = F)
+```
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("./result.new/Trait_matrix.pdf",
+       plot = pheatmap::pheatmap(datTraits, cluster_rows = F, cluster_cols = F, main = "Trait matrix",
+                   display_numbers = T, number_format = "%.0f", legend = F),
+       width = 4,height = 7.5)
+```
+
+
+```{r fig.width=10.8, fig.height=7.2}
+traitColors <- numbers2colors(datTraits, signed = F)
+
+plotDendroAndColors(sampleTree, traitColors,
+                    groupLabels = names(datTraits),
+                    main = paste0("Sample dendrogram of filtered top",nrow(mat.test)," highly variable genes, using log2(TPM.crt+1) as input"))
+
+
+```
+
+#### network - module       
+
+
+```{r}
+powers <- c(c(1:50))
+powers
+```
+
+```{r}
+sft <- pickSoftThreshold(data = datExpr,
+                         powerVector = powers, verbose = 5,
+                         networkType = "signed")
+```
+
+
+```{r fig.width=10, fig.height=8}
+par(mfrow = c(2,1))
+cex1 = 0.9
+
+#
+plot(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+     xlab="Soft Threshold (power)", ylab = "Scale Free Topology Model Fit, Signed R^2", type = "n",
+     main = paste("Scale independence"))
+text(sft$fitIndices[,1], -sign(sft$fitIndices[,3])*sft$fitIndices[,2],
+     labels = powers, cex = cex1, col = "red")
+abline(h=0.9, col="red")
+
+# 
+plot(sft$fitIndices[,1], sft$fitIndices[,5],
+     xlab = "Soft Threshold (power)", ylab = "Mean Connectivity", type = "n",
+     main = paste("Mean connectivity"))
+text(sft$fitIndices[,1], sft$fitIndices[,5], labels = powers,)
+
+```
+
+
+##### Co-expression similarity and adjacency                     
+
+
+```{r}
+softPower <- 30
+adjacency <- adjacency(datExpr = datExpr,
+                       power = softPower,
+                       type = "signed")
+```
+
+
+##### Topological Overlap Matrix (TOM)                
+
+```{r}
+TOM <- TOMsimilarity(adjMat = adjacency, TOMType = "signed")
+dissTOM <- 1 - TOM
+```
+
+
+##### CLustering using TOM                    
+
+```{r fig.width=18, fig.height=12}
+geneTree <- hclust(as.dist(dissTOM), method = "average")
+#geneTree <- hclust(as.dist(dissTOM), method = "ward.D2")
+
+#
+plot(geneTree, xlab = "", sub = "", main = "Gene clustering on TOM-based dissimilarity",
+     labels = FALSE, hang = 0.04)
+
+
+```
+
+
+```{r}
+# the authors like large modules, so set minimum module size relatively high
+minModuleSize = 30
+
+#
+dynamicMods <- cutreeDynamic(dendro = geneTree,
+                             distM = dissTOM,
+                             method = "hybrid",
+                             deepSplit = 2,
+                             pamRespectsDendro = FALSE,
+                             minClusterSize = minModuleSize)
+
+table(dynamicMods)
+
+```
+
+```{r}
+#
+dynamicColors <- labels2colors(dynamicMods)
+table(dynamicColors)[match(table(dynamicMods),table(dynamicColors))]
+
+```
+
+
+```{r fig.width=8, fig.height=6}
+#
+plotDendroAndColors(geneTree,dynamicColors, "Dynamic Tree Cut",
+                    dendroLabels = FALSE, hang = 0.03,
+                    addGuide = TRUE, guideHang = 0.05,
+                    main = "Gene dendrogram and module colors")
+```
+
+
+##### merging of modules whose expression profiles are very similar                
+
+```{r}
+# Calculate eigengenes         
+MEList <- moduleEigengenes(datExpr, colors = dynamicColors)
+MEs <- MEList$eigengenes
+
+# dissimilarity of module eigengenes
+#MEDiss <- 1 - cor(MEs)
+MEDiss <- 1 - cor(MEs)
+
+# cluster module eigengenes
+#METree <- hclust(as.dist(MEDiss),method = "average")
+METree <- hclust(as.dist(MEDiss),method = "ward.D2")
+
+```
+
+
+```{r fig.width=7,fig.height=6}
+#
+plot(METree, main = "Clustering of module eigengenes",
+     xlab = "", sub = "")
+abline(h=0.15, col="red")
+abline(h=0.17, col="red")
+abline(h=0.2, col="red")
+```
+
+
+choose a height cut ,corresponding to correlation, to merge              
+
+```{r}
+MEDissThres <- 0.17
+
+#
+merge <- mergeCloseModules(datExpr, dynamicColors, cutHeight = MEDissThres, verbose = 3)
+```
+
+
+```{r}
+mergedColors <- merge$colors
+mergedMEs <- merge$newMEs
+```
+
+
+```{r fig.width=12, fig.height=8}
+#
+plotDendroAndColors(geneTree,
+                    cbind(dynamicColors, mergedColors),
+                    c("Dynamic Tree Cut", "Merged dynamic"),
+                    dendroLabels = FALSE, hang = 0.03,
+                    addGuide = TRUE, guideHang = 0.05,
+                    main = "Gene dendrogram and module colors")
+```
+
+
+```{r}
+# rename
+moduleColors <- mergedColors
+
+#
+colorOrder <- c("grey", standardColors(50))
+moduleLabels <- match(moduleColors, colorOrder)-1
+MEs <- mergedMEs
+
+```
+
+
+```{r}
+standardColors(50)
+```
+
+```{r fig.width=10, fig.height=8}
+scales::show_col(standardColors(50))
+```
+
+
+```{r eval=FALSE, include=FALSE, paged.print=FALSE}
+pdf("./result.new/standardcolor.pdf",width = 10,height = 8)
+scales::show_col(standardColors(50))
+dev.off()
+```
+
+
+```{r}
+table(dynamicMods)
+length(table(dynamicMods))
+```
+
+
+```{r}
+table(moduleLabels)
+length(table(moduleLabels))
+```
+
+```{r}
+table(moduleColors)
+```
+
+
+```{r}
+table(moduleColors)[c(1,7,2,6,8,5,3,9,4)]
+```
+
+```{r paged.print=FALSE}
+data.frame(table(moduleColors)[c(1,7,2,6,8,5,3,9,4)])
+```
+
+```{r}
+moduleColors.new <- moduleColors
+
+
+moduleColors.new[moduleColors.new == "blue"] <- "purple"
+moduleColors.new[moduleColors.new == "pink"] <- "blue"
+moduleColors.new[moduleColors.new == "cyan"] <- "darkorange"
+
+moduleColors.new[moduleColors.new == "green"] <- "darkgreen"
+moduleColors.new[moduleColors.new == "yellow"] <- "green"
+moduleColors.new[moduleColors.new == "lightcyan"] <- "yellow"
+
+moduleColors.new[moduleColors.new == "tan"] <- "turquoise"
+moduleColors.new[moduleColors.new == "grey60"] <- "yellowgreen"
+
+moduleColors.new[moduleColors.new == "grey"] <- "grey"
+
+moduleColors.new <- factor(moduleColors.new,
+                           levels = c("blue","purple",
+                                      "darkorange","yellow",
+                                      "yellowgreen",
+                                      "green","darkgreen","turquoise",
+                                      "grey"))
+
+```
+
+
+```{r paged.print=FALSE}
+data.frame(table(moduleColors.new))
+```
+
+```{r eval=FALSE, include=FALSE}
+write.csv(data.frame(table(moduleColors.new)),"./result.new/moduleColors.new.csv",row.names = F)
+```
+
+
+```{r}
+# 
+nSamples <- nrow(datTraits)
+
+# Recalculate MEs with color labels      
+#MEs0 <- moduleEigengenes(datExpr, moduleColors)$eigengenes
+MEs0 <- moduleEigengenes(datExpr, moduleColors.new)$eigengenes
+#MEs <- orderMEs(MEs0)
+MEs <- MEs0
+
+moduleTraitCor <- cor(MEs, datTraits, use = "p")
+#moduleTraitCor <- bicor(MEs, datTraits, use = "p", robustY = F)
+moduleTraitPvalue <- corPvalueStudent(moduleTraitCor, nSamples)
+
+```
+
+
+```{r}
+#
+textMatrix <- paste(signif(moduleTraitCor, 2), "\n(",
+                    signif(moduleTraitPvalue, 1), ")", sep = "")
+dim(textMatrix) <- dim(moduleTraitCor)
+
+```
+
+
+```{r eval=FALSE, include=FALSE}
+write.csv(moduleTraitCor[,idx.xlable], "./result.new/Module.Trait.s1_correlation.csv")
+write.csv(moduleTraitPvalue[,idx.xlable], "./result.new/Module.Trait.s2_pvalue.csv")
+```
+
+
+```{r fig.width=8, fig.height=6}
+par(mar = c(6, 10.5, 3, 3))
+module_order <- names(MEs) %>% gsub("ME","",.)
+#
+labeledHeatmap(Matrix = moduleTraitCor,
+               xLabels = names(datTraits),
+               yLabels = names(MEs),
+               ySymbols = module_order,
+               colorLabels = FALSE,
+               colors = blueWhiteRed(50),
+               textMatrix = textMatrix,
+               setStdMargins = FALSE,
+               cex.text = 0.5,
+               cex.lab = 0.8, 
+               zlim = c(-1,1),
+               main = paste("Module-trait relationships"))
+
+```
+
+
+```{r fig.width=8.1, fig.height=6}
+par(mar = c(6, 10.5, 3, 3))
+module_order <- names(MEs) %>% gsub("ME","",.)
+#
+idx.xlable <- c(4,10,1,7,11,13,
+                14,
+                2,3,12,15,8,9,5,6
+                )
+
+color.ttt <- colorRampPalette(
+  c(
+    "#03047F", # deep blue
+    "white",
+    "#CC2627"  # deep red
+  )
+)(100)
+
+labeledHeatmap(Matrix = moduleTraitCor[,idx.xlable],
+               xLabels = names(datTraits)[idx.xlable],
+               yLabels = names(MEs),
+               ySymbols = module_order,
+               colorLabels = FALSE,
+               colors = blueWhiteRed(50),
+               #colors = color.ttt,
+               textMatrix = textMatrix[,idx.xlable],
+               setStdMargins = FALSE,
+               cex.text = 0.5,
+               cex.lab = 0.8, 
+               zlim = c(-0.95,0.95),
+               main = paste("Module-trait relationships"))
+
+```
+
+
+
+```{r fig.width=8.1, fig.height=6}
+par(mar = c(6, 10.5, 3, 3))
+module_order <- names(MEs) %>% gsub("ME","",.)
+#
+idx.xlable1 <- c(1,2,3,
+                 10,11,12,13,14,15,
+                 7,8,9,
+                 4,5,6
+                )
+
+color.ttt <- colorRampPalette(
+  c(
+    "#03047F", # deep blue
+    "white",
+    "#CC2627"  # deep red
+  )
+)(100)
+
+labeledHeatmap(Matrix = moduleTraitCor[,idx.xlable1],
+               xLabels = names(datTraits)[idx.xlable1],
+               yLabels = names(MEs),
+               ySymbols = module_order,
+               colorLabels = FALSE,
+               colors = blueWhiteRed(50),
+               #colors = color.ttt,
+               textMatrix = textMatrix[,idx.xlable1],
+               setStdMargins = FALSE,
+               cex.text = 0.5,
+               cex.lab = 0.8, 
+               zlim = c(-0.95,0.95),
+               main = paste("Module-trait relationships"))
+
+```
+
+
+
+### results           
+
+#### module-gene list          
+
+for GO enrichment         
+
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("./result.new/Module.Trait.Relationships.sort1.pdf",
+    width = 8.1,height = 6)
+par(mar = c(6, 9.5, 3, 3))
+labeledHeatmap(Matrix = moduleTraitCor[,idx.xlable],
+               xLabels = names(datTraits)[idx.xlable],
+               yLabels = names(MEs),
+               ySymbols = module_order,
+               colorLabels = FALSE,
+               colors = blueWhiteRed(50),
+               #colors = color.ttt,
+               textMatrix = textMatrix[,idx.xlable],
+               setStdMargins = FALSE,
+               cex.text = 0.5,
+               cex.lab = 0.8, 
+               zlim = c(-0.95,0.95),
+               main = paste("Module-Trait Relationships"))
+dev.off()
+
+#
+pdf("./result.new/Module.Trait.Relationships.sort2.pdf",
+    width = 8.1,height = 6)
+par(mar = c(6, 9.5, 3, 3))
+labeledHeatmap(Matrix = moduleTraitCor[,idx.xlable1],
+               xLabels = names(datTraits)[idx.xlable1],
+               yLabels = names(MEs),
+               ySymbols = module_order,
+               colorLabels = FALSE,
+               colors = blueWhiteRed(50),
+               #colors = color.ttt,
+               textMatrix = textMatrix[,idx.xlable1],
+               setStdMargins = FALSE,
+               cex.text = 0.5,
+               cex.lab = 0.8, 
+               zlim = c(-0.95,0.95),
+               main = paste("Module-Trait Relationships"))
+dev.off()
+```
+
+
+```{r eval=FALSE, include=FALSE}
+write.table(rownames(mat.test)[moduleColors.new=="blue"], "./result.new/modules.GO/module01.blue.txt", col.names = F, row.names = F, quote = F)
+write.table(rownames(mat.test)[moduleColors.new=="purple"], "./result.new/modules.GO/module02.purple.txt", col.names = F, row.names = F, quote = F)
+write.table(rownames(mat.test)[moduleColors.new=="darkorange"], "./result.new/modules.GO/module03.darkorange.txt", col.names = F, row.names = F, quote = F)
+write.table(rownames(mat.test)[moduleColors.new=="yellow"], "./result.new/modules.GO/module04.yellow.txt", col.names = F, row.names = F, quote = F)
+write.table(rownames(mat.test)[moduleColors.new=="yellowgreen"], "./result.new/modules.GO/module05.yellowgreen.txt", col.names = F, row.names = F, quote = F)
+write.table(rownames(mat.test)[moduleColors.new=="green"], "./result.new/modules.GO/module06.green.txt", col.names = F, row.names = F, quote = F)
+write.table(rownames(mat.test)[moduleColors.new=="darkgreen"], "./result.new/modules.GO/module07.darkgreen.txt", col.names = F, row.names = F, quote = F)
+write.table(rownames(mat.test)[moduleColors.new=="turquoise"], "./result.new/modules.GO/module08.turquoise.txt", col.names = F, row.names = F, quote = F)
+write.table(rownames(mat.test)[moduleColors.new=="grey"], "./result.new/modules.GO/module09.grey.txt", col.names = F, row.names = F, quote = F)
+```
+
+
+```{r}
+rownames(mat.test)[moduleColors.new=="darkorange"]
+```
+
+
+#### module-correlation          
+
+
+```{r fig.width=5, fig.height=8.5}
+par(cex = 0.9)
+
+plotEigengeneNetworks(MEs, "",
+                      marDendro = c(0,4.5,1,3),
+                      marHeatmap = c(5,4.5,1,3),
+                      cex.lab = 0.8, 
+                      xLabelsAngle = 90)
+```
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("./result.new/Module_correlation.s1_heatmap.pdf",
+    width=5, height=4.2)
+par(cex = 0.9)
+
+plotEigengeneNetworks(MEs, "",
+                      plotDendrograms = F,
+                      plotHeatmaps = T,
+                      plotAdjacency = T,
+                      plotPreservation = "standard",
+                      marDendro = c(0,4.5,1,3),
+                      marHeatmap = c(5,4.5,1,3),
+                      cex.lab = 0.8, 
+                      xLabelsAngle = 90)
+dev.off()
+
+#
+pdf("./result.new/Module_correlation.s2_dendrogram.pdf",
+    width=5, height=4.2)
+par(cex = 0.9)
+
+plotEigengeneNetworks(MEs, "",
+                      plotDendrograms = T,
+                      plotHeatmaps = F,
+                      plotAdjacency = T,
+                      plotPreservation = "standard",
+                      marDendro = c(0,4.5,1,3),
+                      marHeatmap = c(5,4.5,1,3),
+                      cex.lab = 0.8, 
+                      xLabelsAngle = 90)
+dev.off()
+
+
+```
+
+
+
+#### check DEGs overlap               
+
+
+```{r}
+DEG.df <- list(B1.PvsC = read.csv("../analysis_DEGs.new202310/edgeR_DEGs.cnt.B1.P_vs_C.csv"),
+               B2.PvsC = read.csv("../analysis_DEGs.new202310/edgeR_DEGs.cnt.B2.P_vs_C.csv"),
+               B3.PvsC = read.csv("../analysis_DEGs.new202310/edgeR_DEGs.cnt.B3.P_vs_C.csv"),
+               B4.PvsC = read.csv("../analysis_DEGs.new202310/edgeR_DEGs.cnt.B4.P_vs_C.csv"),
+               B5.PvsC = read.csv("../analysis_DEGs.new202310/edgeR_DEGs.cnt.B5.P_vs_C.csv"))
+DEG.df <- lapply(DEG.df, function(x){
+  rownames(x) <- x$gene
+  x
+})
+
+```
+
+
+```{r paged.print=FALSE}
+lapply(DEG.df, head)
+```
+
+
+```{r}
+DEG.list.FC1.5 <- list(B1.Pup = proc_DEG(DEG.df$B1.PvsC, p.cut = 0.05, FC.cut = 1.5, abs = F)$gene,
+                       B1.Cup = proc_DEG(DEG.df$B1.PvsC, p.cut = 0.05, FC.cut = -1.5, abs = F)$gene,
+                       B2.Pup = proc_DEG(DEG.df$B2.PvsC, p.cut = 0.05, FC.cut = 1.5, abs = F)$gene,
+                       B2.Cup = proc_DEG(DEG.df$B2.PvsC, p.cut = 0.05, FC.cut = -1.5, abs = F)$gene,
+                       B3.Pup = proc_DEG(DEG.df$B3.PvsC, p.cut = 0.05, FC.cut = 1.5, abs = F)$gene,
+                       B3.Cup = proc_DEG(DEG.df$B3.PvsC, p.cut = 0.05, FC.cut = -1.5, abs = F)$gene,
+                       B4.Pup = proc_DEG(DEG.df$B4.PvsC, p.cut = 0.05, FC.cut = 1.5, abs = F)$gene,
+                       B4.Cup = proc_DEG(DEG.df$B4.PvsC, p.cut = 0.05, FC.cut = -1.5, abs = F)$gene,
+                       B5.Pup = proc_DEG(DEG.df$B5.PvsC, p.cut = 0.05, FC.cut = 1.5, abs = F)$gene,
+                       B5.Cup = proc_DEG(DEG.df$B5.PvsC, p.cut = 0.05, FC.cut = -1.5, abs = F)$gene)
+
+DEG.list.FC2 <- list(B1.Pup = proc_DEG(DEG.df$B1.PvsC, p.cut = 0.05, FC.cut = 2, abs = F)$gene,
+                       B1.Cup = proc_DEG(DEG.df$B1.PvsC, p.cut = 0.05, FC.cut = -2, abs = F)$gene,
+                       B2.Pup = proc_DEG(DEG.df$B2.PvsC, p.cut = 0.05, FC.cut = 2, abs = F)$gene,
+                       B2.Cup = proc_DEG(DEG.df$B2.PvsC, p.cut = 0.05, FC.cut = -2, abs = F)$gene,
+                       B3.Pup = proc_DEG(DEG.df$B3.PvsC, p.cut = 0.05, FC.cut = 2, abs = F)$gene,
+                       B3.Cup = proc_DEG(DEG.df$B3.PvsC, p.cut = 0.05, FC.cut = -2, abs = F)$gene,
+                       B4.Pup = proc_DEG(DEG.df$B4.PvsC, p.cut = 0.05, FC.cut = 2, abs = F)$gene,
+                       B4.Cup = proc_DEG(DEG.df$B4.PvsC, p.cut = 0.05, FC.cut = -2, abs = F)$gene,
+                       B5.Pup = proc_DEG(DEG.df$B5.PvsC, p.cut = 0.05, FC.cut = 2, abs = F)$gene,
+                       B5.Cup = proc_DEG(DEG.df$B5.PvsC, p.cut = 0.05, FC.cut = -2, abs = F)$gene)
+```
+
+
+```{r}
+library(UpSetR)
+```
+
+```{r fig.width=12, fig.height=7.6}
+upset(fromList(DEG.list.FC1.5),
+      order.by = 'freq', nsets = 10, point.size=3.5, line.size =1, text.scale = 2)
+  
+grid::grid.text("padj<0.05, |FC|>1.5",x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+```
+
+```{r fig.width=12, fig.height=7.6}
+upset(fromList(DEG.list.FC2),
+      order.by = 'freq', nsets = 10, point.size=3.5, line.size =1, text.scale = 2)
+  
+grid::grid.text("padj<0.05, |FC|>2",x = 0.65, y=0.95, gp=grid::gpar(fontsize=20))
+```
+
+
+```{r fig.width=9, fig.height=5.4}
+upset(fromList(DEG.list.FC1.5[c(1,3,5,7,9)]),
+      order.by = 'freq', nsets = 8, point.size=3.5, line.size =1, text.scale = 1.6)
+  
+grid::grid.text("padj<0.05, |FC|>1.5",x = 0.65, y=0.95, gp=grid::gpar(fontsize=15))
+
+upset(fromList(DEG.list.FC1.5[c(2,4,6,8,10)]),
+      order.by = 'freq', nsets = 8, point.size=3.5, line.size =1, text.scale = 1.5)
+  
+grid::grid.text("padj<0.05, |FC|>1.5",x = 0.65, y=0.95, gp=grid::gpar(fontsize=15))
+
+#
+upset(fromList(DEG.list.FC2[c(1,3,5,7,9)]),
+      order.by = 'freq', nsets = 8, point.size=3.5, line.size =1, text.scale = 1.5)
+  
+grid::grid.text("padj<0.05, |FC|>2",x = 0.65, y=0.95, gp=grid::gpar(fontsize=15))
+
+upset(fromList(DEG.list.FC2[c(2,4,6,8,10)]),
+      order.by = 'freq', nsets = 8, point.size=3.5, line.size =1, text.scale = 1.6)
+  
+grid::grid.text("padj<0.05, |FC|>2",x = 0.65, y=0.95, gp=grid::gpar(fontsize=15))
+```
+
+```{r fig.width=7.6, fig.height=4.8}
+pdf("./result.new/DEG.overlap/DEG.overlap.PvsC.Pup.FC1.5.pdf", width = 9,height = 5.4)
+upset(fromList(DEG.list.FC1.5[c(1,3,5,7,9)]),
+      order.by = 'freq', nsets = 8, point.size=3.5, line.size =1, text.scale = 1.3)
+  
+grid::grid.text("padj<0.05, |FC|>1.5",x = 0.65, y=0.95, gp=grid::gpar(fontsize=15))
+dev.off()
+
+pdf("./result.new/DEG.overlap/DEG.overlap.PvsC.Cup.FC1.5.pdf", width = 9,height = 5.4)
+upset(fromList(DEG.list.FC1.5[c(2,4,6,8,10)]),
+      order.by = 'freq', nsets = 8, point.size=3.5, line.size =1, text.scale = 1.3)
+  
+grid::grid.text("padj<0.05, |FC|>1.5",x = 0.65, y=0.95, gp=grid::gpar(fontsize=15))
+dev.off()
+#
+pdf("./result.new/DEG.overlap/DEG.overlap.PvsC.Pup.FC2.pdf", width = 9,height = 5.4)
+
+upset(fromList(DEG.list.FC2[c(1,3,5,7,9)]),
+      order.by = 'freq', nsets = 8, point.size=3.5, line.size =1, text.scale = 1.3)
+  
+grid::grid.text("padj<0.05, |FC|>2",x = 0.65, y=0.95, gp=grid::gpar(fontsize=15))
+dev.off()
+
+pdf("./result.new/DEG.overlap/DEG.overlap.PvsC.Cup.FC2.pdf", width = 9,height = 5.4)
+upset(fromList(DEG.list.FC2[c(2,4,6,8,10)]),
+      order.by = 'freq', nsets = 8, point.size=3.5, line.size =1, text.scale = 1.3)
+  
+grid::grid.text("padj<0.05, |FC|>2",x = 0.65, y=0.95, gp=grid::gpar(fontsize=15))
+dev.off()
+
+```
+
+
+#### TOMplot              
+
+
+```{r}
+#
+plotTOM <- dissTOM^7
+
+#
+diag(plotTOM) <- NA
+```
+
+
+
+```{r fig.width=6, fig.height=6}
+TOMplot(plotTOM, geneTree, moduleColors.new, main = ("Network heatmap plot, all genes"), col=gplots::colorpanel(250,'darkred',"orange",'lemonchiffon'))
+```
+
+
+
+```{r fig.width=6, fig.height=6}
+TOMplot(plotTOM, geneTree, moduleColors.new, main = ("Network heatmap plot, all genes"))
+```
+
+
+```{r eval=FALSE, include=FALSE}
+## not run, pdf is 180M, just save two png files
+pdf("./result.new/Module.network_heatmap.pdf",
+    width = 6, height = 6)
+TOMplot(plotTOM, geneTree, moduleColors.new, main = ("Network heatmap plot, all genes"), col=gplots::colorpanel(250,'darkred',"orange",'lemonchiffon'))
+dev.off()
+```
+
+
+
+#### module-heatmap          
+       
+output heatmap and matrix for each module               
+
+
+```{r fig.width=20, fig.height=12.5}
+font.size <- 0.11/ (table(moduleColors.new) /2000)
+font.size[font.size >2] <- font.size[font.size >2] +2.5
+font.size[font.size <0.5] <- 0.5
+font.size[font.size >10] <- 10
+
+gg.xxx <- list()
+for(xxx in names(table(moduleColors.new))){
+gg.xxx[[xxx]] <- cowplot::plot_grid(
+pheatmap::pheatmap(zscore_mat(log2(matt_pc.combine.crt[rownames(mat.test)[moduleColors.new==xxx],]+1)),cluster_rows = T, cluster_cols = F,
+         main = paste0(xxx,", zscore of log2(TPM.crt +1)"), 
+         color = color.test, 
+         show_rownames = T, fontsize_row = font.size[xxx],
+         #gaps_row = length(rets$up), 
+         #gaps_row = 40, 
+         silent = T,
+         #gaps_col = length(Aidx),
+         breaks = seq(-2,2,0.04))$gtable,
+
+pheatmap::pheatmap(zscore_mat(log2(matt_pc.combine[rownames(mat.test)[moduleColors.new==xxx],]+1)),cluster_rows = T, cluster_cols = F,
+         main = paste0(xxx,", zscore of log2(TPM +1)"), 
+         color = color.test, 
+         show_rownames = T, fontsize_row = font.size[xxx],
+         #gaps_row = length(rets$up), 
+         #gaps_row = 40, 
+         silent = T,
+         #gaps_col = length(Aidx),
+         breaks = seq(-2,2,0.04))$gtable,
+ncol=2)
+}  
+#gg.xxx
+```
+
+
+```{r}
+#gg.xxx
+```
+
+
+```{r fig.height=18,fig.width=27}
+cowplot::plot_grid(
+  plotlist = gg.xxx,
+  ncol = 3
+)
+```
+
+
+
+
+```{r eval=FALSE, include=FALSE}
+for(x1 in 1:9){
+  x2 <- x1
+  if(x2<10){
+    x2 <- paste0(0,x2)
+  }
+  
+  x3 <- names(gg.xxx)[x1]
+  
+  ggsave(paste0("./result.new/modules.heatmap/module.heatmap.",x2,".",x3,".pdf"),
+         plot = gg.xxx[[x3]],
+         width = 20,height = 12.5)
+
+}
+```
+
+
+```{r eval=FALSE, include=FALSE}
+xxx="blue"
+ggsave("./result.new/modules.heatmap/module.heatmap.01.blue.l.pdf",
+       cowplot::plot_grid(
+pheatmap::pheatmap(zscore_mat(log2(matt_pc.combine.crt[rownames(mat.test)[moduleColors.new=="blue"],]+1)),cluster_rows = T, cluster_cols = F,
+         main = paste0(xxx,", zscore of log2(TPM.crt +1)"), 
+         color = color.test, fontsize = 35,
+         show_rownames = T, fontsize_row = 0.5,
+         #gaps_row = length(rets$up), 
+         #gaps_row = 40, 
+         silent = T,
+         #gaps_col = length(Aidx),
+         breaks = seq(-2,2,0.04))$gtable,
+
+pheatmap::pheatmap(zscore_mat(log2(matt_pc.combine[rownames(mat.test)[moduleColors.new=="blue"],]+1)),cluster_rows = T, cluster_cols = F,
+         main = paste0(xxx,", zscore of log2(TPM +1)"), 
+         color = color.test,  fontsize = 35,
+         show_rownames = T, fontsize_row =  0.5,
+         #gaps_row = length(rets$up), 
+         #gaps_row = 40, 
+         silent = T,
+         #gaps_col = length(Aidx),
+         breaks = seq(-2,2,0.04))$gtable,
+ncol=2),
+       width = 50,height = 30, limitsize = F)
+```
+
+
+```{r}
+# get reordered pheatmap rownames from TPM.crt one                
+#    see https://www.plob.org/article/16698.html
+
+out0 <- pheatmap::pheatmap(zscore_mat(log2(matt_pc.combine.crt[rownames(mat.test)[moduleColors.new=="blue"],]+1)),cluster_rows = T, cluster_cols = F,
+         main = paste0(xxx,", zscore of log2(TPM.crt +1)"), 
+         color = color.test, fontsize = 25,
+         show_rownames = T, fontsize_row = 0.5,
+         #gaps_row = length(rets$up), 
+         #gaps_row = 40, 
+         silent = T,
+         #gaps_col = length(Aidx),
+         breaks = seq(-2,2,0.04))
+
+head(rownames(mat.test)[moduleColors.new=="blue"][out0$tree_row$order],50)
+
+```
+
+
+```{r eval=FALSE, include=FALSE}
+# same in order in TPM.crt clustered pheatmap
+out.list <- list()
+
+for(x1 in 1:9){
+  x2 <- x1
+  if(x2<10){
+    x2 <- paste0(0,x2)
+  }
+  
+  x3 <- names(table(moduleColors.new))[x1]
+  
+  out.list[[x3]] <- pheatmap::pheatmap(zscore_mat(log2(matt_pc.combine.crt[rownames(mat.test)[moduleColors.new==x3],]+1)),cluster_rows = T, cluster_cols = F,
+         main = paste0(xxx,", zscore of log2(TPM.crt +1)"), 
+         color = color.test, fontsize = 25,
+         show_rownames = T, fontsize_row = 0.5,
+         #gaps_row = length(rets$up), 
+         #gaps_row = 40, 
+         silent = T,
+         #gaps_col = length(Aidx),
+         breaks = seq(-2,2,0.04))
+  
+  out.list[[x3]] <- rownames(mat.test)[moduleColors.new==x3][out.list[[x3]]$tree_row$order]
+  
+  #pdf(paste0("./result0301/modules.new.heatmap/module.heatmap.",x2,".pdf"),
+  #    width = 18,height = 12)
+  #gg.xxx[[x3]]
+  #dev.off()
+  
+  write.csv(mat.test[out.list[[x3]],],paste0("./result.new/modules.matrix/module.matrix.",x2,".",x3,".log2.TPM.crt.csv"))
+  write.csv(zscore_mat(mat.test[out.list[[x3]],]),paste0("./result.new/modules.matrix/module.matrix.",x2,".",x3,".log2.TPM.crt.zscore.csv"))
+}
+```
+
+
+```{r}
+#save.image("I:/Shared_win/projects/20230211_microglia_module/analysis_new202310/test1.RData")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

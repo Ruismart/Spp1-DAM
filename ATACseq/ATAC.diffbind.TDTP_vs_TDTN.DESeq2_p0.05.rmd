@@ -1,0 +1,466 @@
+---
+output: 
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+---
+
+
+# diffbind - differential peaks           
+
+
+```{r message=FALSE, warning=FALSE}
+library(DiffBind)
+library(tidyverse)
+library(dplyr)
+library(ChIPseeker)
+library(TxDb.Mmusculus.UCSC.mm10.knownGene)
+library(org.Mm.eg.db)
+library(ggplot2)
+library(ggpubr)
+library(parallel)
+```
+
+
+```{r include=FALSE}
+volpp <- function(res_diffbind, Font=12, volcanoy="p.value", Cnt="N cells, A vs B", color=c("#CC0000","#BBBBBB","#2f5688")){
+  res_diffbind <- data.frame(res_diffbind)
+  res_diffbind$Group[res_diffbind$Fold>0] <- "up-regulated"
+  res_diffbind$Group[res_diffbind$Fold<0] <- "dn-regulated"
+  res_diffbind$Group[res_diffbind[,volcanoy]>0.05] <- "not-significant"
+  res_diffbind$Group <- factor(res_diffbind$Group, 
+                               levels = c("dn-regulated","not-significant","up-regulated"))
+  res_diffbind$logP <- -log10(res_diffbind$p.value)
+
+  maxX <- max(abs(range(res_diffbind$Fold)))*1.1
+
+volplot1 <- ggscatter(res_diffbind, x = "Fold", y = "logP", color = "Group",
+                       palette = color,size = 1.5,
+                       #label = "Genes",
+                       font.label = Font, repel = F,
+                       xlab = "diffbind Fold", ylab=paste0("-log10(",volcanoy,")")) + theme_classic() +
+    #geom_text_repel(mapping = aes(x = Ret$log2FoldChange, y = Ret$pp, label = Ret$Genes), max.overlaps = 50) +
+    guides(color=guide_legend(reverse=TRUE,title = Cnt)) +
+    #geom_vline(xintercept = c(-log2(FC),log2(FC)), linetype="dashed") +
+    geom_hline(yintercept = -log10(0.05), linetype="dashed") 
+volplot1
+
+}
+
+```
+
+
+## load bam and peaks        
+
+```{r}
+samples <- read.csv("samplesheet.ATAC_LYN.macs3_q0.05.filt_new.csv")
+#samples <- samples[c(),]
+dbObj <- dba(sampleSheet = samples)
+```
+
+```{r paged.print=FALSE}
+samples
+```
+
+```{r paged.print=FALSE}    
+dbObj
+```
+
+```{r}
+# Affinity bind matrix
+dbObj <- dba.count(dbObj, bUseSummarizeOverlaps = TRUE, bParallel = T)
+```
+
+
+### FRiP            
+
+```{r paged.print=FALSE}    
+dbObj
+```
+
+
+```{r eval=FALSE, include=FALSE}
+# FRiP record
+sink(file = "./result.macs3q0.05/ATAC_LYN.diff_peak.FRiP.mac3q0.05.filt_new.csv",append = F, split = TRUE)
+```
+
+```{r}
+dbObj
+```
+
+```{r eval=FALSE, include=FALSE}
+sink()
+```
+
+
+
+```{r}
+scales::hue_pal()(6)[c(5,2,1)]
+scales::show_col(scales::hue_pal()(6)[c(5,2,1)])
+```
+
+```{r}
+color.Bcell <- scales::hue_pal()(6)[c(5,2,1)]
+color.Bcell
+```
+
+
+
+### clustering           
+
+```{r fig.height=5, fig.width=5.9}
+dba.plotPCA(dbObj, label = DBA_ID, labelSize = 0.5, dotSize = 3.2, vColors = color.Bcell) 
+```
+
+
+```{r fig.height=5, fig.width=5.6}
+dba.plotPCA(dbObj, label = DBA_ID, labelSize = 0.5, dotSize = 3.2, components = 3:4, vColors = color.Bcell)
+```
+
+```{r fig.height=5, fig.width=5.6}
+dba.plotPCA(dbObj, label = DBA_ID, labelSize = 0.5, dotSize = 3.2, components = 5:6, vColors = color.Bcell)
+```
+
+whole-genome correlation 98-99% for all each two samples, the putative biological difference couldn't be that significantly large         
+just set p0.05 to do motif enrichment, see if match some current biological knowledges                   
+
+
+```{r}
+dbObj
+```
+
+
+```{r fig.width=5.1, fig.height=4.8}
+plot(dbObj)
+```
+
+
+## run DESeq2/edgeR         
+
+
+```{r}
+#dbObj <- dba.contrast(dbObj, categories = DBA_CONDITION, minMembers = 3,contrast = c("Condition","GCB_N","PC_P"))
+dbObj <- dba.contrast(dbObj, categories = c(DBA_CONDITION), minMembers = 2)
+```
+
+```{r paged.print=FALSE}
+dbObj
+```
+
+```{r}
+# Performing the differential enrichment analysis
+dbObj <- dba.analyze(dbObj, method = DBA_ALL_METHODS)
+```
+
+
+### result             
+
+```{r paged.print=FALSE}
+dbObj
+```
+
+#### extract all                       
+
+```{r}
+res_deseq <- dba.report(dbObj, method = DBA_DESEQ2, contrast = 2, th= 1)
+res_edgeR <- dba.report(dbObj, method = DBA_EDGER, contrast = 2, th= 1)
+```
+
+
+
+## DESeq2 result                
+
+### volcano            
+
+
+```{r include=FALSE}
+
+volpp2 <- function(res_diffbind, Font=12, volcanoy="p.value",pcut=0.05, Cnt="Microglia  CTRA vs TDTP", color=c("#CC0000","#BBBBBB","#2f5688")){
+  res_diffbind <- data.frame(res_diffbind)
+  res_diffbind$Group[res_diffbind$Fold>0] <- "CTRA up"
+  res_diffbind$Group[res_diffbind$Fold<0] <- "TDTP up"
+  res_diffbind$Group[res_diffbind[,volcanoy]>=pcut] <- "not-significant"
+  res_diffbind$Group <- factor(res_diffbind$Group, 
+                               levels = c("CTRA up","not-significant","TDTP up"))
+  res_diffbind$logP <- -log10(res_diffbind[,volcanoy])
+  res_diffbind$Fold <- -res_diffbind$Fold *1000
+  
+  maxX <- max(abs(range(res_diffbind$Fold)))*1.1
+
+volplot1 <- ggscatter(res_diffbind, x = "Fold", y = "logP", fill = "Group", 
+                       color = "Group",
+                       #palette = color,
+                       size = 3.5,alpha=0.45, shape = 21,
+                       #label = "Genes",
+                       font.label = Font, repel = F,
+                       xlab = "diffbind Fold", ylab=paste0("-log10(",volcanoy,")")) + theme_classic() +
+    #geom_text_repel(mapping = aes(x = Ret$log2FoldChange, y = Ret$pp, label = Ret$Genes), max.overlaps = 50) +
+    guides(color=guide_legend(reverse=TRUE,title = Cnt)) +
+    #geom_vline(xintercept = c(-log2(FC),log2(FC)), linetype="dashed") +
+    geom_hline(yintercept = -log10(pcut), linetype="dashed") 
+volplot1
+
+}
+
+```
+
+
+```{r fig.width=6, fig.height=4.5}
+#color.volcano <- c(color.Bcell[1],"#BBBBBB",color.Bcell[2])
+color.volcano <- c(color.Bcell[1],"#BBBBBB","red")
+
+pp.final2 <- volpp2(res_deseq, Font=12, volcanoy="p.value",pcut = 0.05, Cnt="Microglia CTRA vs TDTP",
+      #color = c("#CC0000","#BBBBBB","#2f5688") + 
+      color = color.volcano) + 
+  scale_colour_manual(values = color.volcano)+
+  guides(colour = "none") +
+  scale_fill_manual(values = color.volcano) +
+  labs(title=paste0("DESeq2 differential peaks: CTRA vs TDTP",
+                    "\np.value < 0.05",
+                    "\nCTRA up: ",dim(data.frame(res_deseq) %>% filter(p.value < 0.05 & Fold >0))[1],
+                    "\nTDTP up: ",dim(data.frame(res_deseq) %>% filter(p.value < 0.05 & Fold <0))[1])) + #xlim(c(-1,4.5)) +
+  guides(fill = guide_legend(reverse=TRUE))
+pp.final2
+```
+
+```{r eval=FALSE, include=FALSE}
+ggsave("./diffpeak_deseq_p0.05/volcano.s2s3only.macs3_q0.05.diffbind_DESeq2_p0.05.pdf",
+       width = 6, height = 4.5,
+       plot = pp.final2)
+```
+
+
+### peaks bed       
+
+
+```{r include=FALSE}
+diffpeak.q0.05_p0.05.Cup789 <- data.frame(res_deseq) %>% filter(p.value < 0.05 & Fold >0)
+diffpeak.q0.05_p0.05.Cup789 <- diffpeak.q0.05_p0.05.Cup789 %>% arrange(seqnames,start,end)
+rownames(diffpeak.q0.05_p0.05.Cup789) <- paste0(diffpeak.q0.05_p0.05.Cup789[,1],
+                                                 "_",
+                                                 diffpeak.q0.05_p0.05.Cup789[,2],
+                                                 "_",
+                                                 diffpeak.q0.05_p0.05.Cup789[,3])
+# for DESeq2 output, the order of magnitudes here may somehow go run, make all fold x1e3 to fit edgeR results as same level
+diffpeak.q0.05_p0.05.Cup789$Fold <- 1000*diffpeak.q0.05_p0.05.Cup789$Fold 
+#diffpeak.q0.05_p0.05.Cup789
+```
+
+```{r include=FALSE}
+diffpeak.q0.05_p0.05.Pup44 <- data.frame(res_deseq) %>% filter(p.value < 0.05 & Fold <0)
+diffpeak.q0.05_p0.05.Pup44 <- diffpeak.q0.05_p0.05.Pup44 %>% arrange(seqnames,start,end)
+rownames(diffpeak.q0.05_p0.05.Pup44) <- paste0(diffpeak.q0.05_p0.05.Pup44[,1],
+                                                "_",
+                                                diffpeak.q0.05_p0.05.Pup44[,2],
+                                                "_",
+                                                diffpeak.q0.05_p0.05.Pup44[,3])
+diffpeak.q0.05_p0.05.Pup44$Fold <- 1000*diffpeak.q0.05_p0.05.Pup44$Fold
+#diffpeak.q0.05_p0.05.Pup44
+```
+
+
+```{r eval=FALSE, include=FALSE}
+write.table(data.frame(diffpeak.q0.05_p0.05.Cup789[,1:3],
+                       paste0(diffpeak.q0.05_p0.05.Cup789[,1],
+                              "_",
+                              diffpeak.q0.05_p0.05.Cup789[,2],
+                              "_",
+                              diffpeak.q0.05_p0.05.Cup789[,3])), 
+            "./diffpeak_deseq_p0.05/diffpeak.q0.05_p0.05.Cup789.bed", col.names = F, row.names = F, quote = F, sep = "\t")
+write.table(data.frame(diffpeak.q0.05_p0.05.Pup44[,1:3],
+                       paste0(diffpeak.q0.05_p0.05.Pup44[,1],
+                              "_",
+                              diffpeak.q0.05_p0.05.Pup44[,2],
+                              "_",
+                              diffpeak.q0.05_p0.05.Pup44[,3])), 
+            "./diffpeak_deseq_p0.05/diffpeak.q0.05_p0.05.Pup44.bed", col.names = F, row.names = F, quote = F, sep = "\t")
+```
+
+
+### add associated genes       
+
+```{r}
+Cup789.peak_gene <- read.table("./diffpeak_deseq_p0.05/GREAT.Cup789/Cup.allregions_table.peak_gene.txt", sep = "\t")
+rownames(Cup789.peak_gene) <- Cup789.peak_gene$V1
+Cup789.peak_gene[1:5,]
+
+```
+
+
+```{r}
+Pup44.peak_gene <- read.table("./diffpeak_deseq_p0.05/GREAT.Pup44/Pup.allregions_table.peak_gene.txt", sep = "\t")
+rownames(Pup44.peak_gene) <- Pup44.peak_gene$V1
+Pup44.peak_gene[1:5,]
+
+```
+
+
+```{r}
+diffpeak.q0.05_p0.05.Cup789$associatedGene <- Cup789.peak_gene[rownames(diffpeak.q0.05_p0.05.Cup789),"V2"]
+diffpeak.q0.05_p0.05.Cup789[1:5,]
+```
+
+```{r}
+diffpeak.q0.05_p0.05.Pup44$associatedGene <- Pup44.peak_gene[rownames(diffpeak.q0.05_p0.05.Pup44),"V2"]
+diffpeak.q0.05_p0.05.Pup44[1:5,]
+```
+
+
+```{r eval=FALSE, include=FALSE}
+write.csv(diffpeak.q0.05_p0.05.Cup789, "./diffpeak_deseq_p0.05/table.s2s3only.macs3_q0.05.diffbind_DESeq2_p0.05.Cup789.csv")
+write.csv(diffpeak.q0.05_p0.05.Pup44, "./diffpeak_deseq_p0.05/table.s2s3only.macs3_q0.05.diffbind_DESeq2_p0.05.Pup44.csv")
+```
+
+
+### ChIPseeker             
+
+
+```{r}
+peakAnno_DESeq2 <- annotatePeak(res_deseq, tssRegion = c(-3000, 3000), TxDb = TxDb.Mmusculus.UCSC.mm10.knownGene,
+                                      annoDb = "org.Mm.eg.db")
+```
+
+
+
+```{r}
+res_deseq.p0.05 <- dba.report(dbObj, method = DBA_DESEQ2, contrast = 2, th = 0.05, bUsePval = TRUE)
+peakAnno_DESeq2.p0.05 <- annotatePeak(res_deseq.p0.05, tssRegion = c(-3000, 3000), TxDb = TxDb.Mmusculus.UCSC.mm10.knownGene,
+                                      annoDb = "org.Mm.eg.db")
+```
+
+```{r paged.print=FALSE}
+peakAnno_DESeq2
+```
+
+
+```{r  paged.print=FALSE}
+peakAnno_DESeq2.p0.05
+```
+
+
+```{r paged.print=FALSE}
+stat.p0.05.Cup <- data.frame(table(sapply((data.frame(peakAnno_DESeq2.p0.05@anno) %>% filter( Fold > 0 ))$annotation,
+                          function(x) strsplit(x,' (E', fixed = T)[[1]][1] )  )) %>%
+                   mutate(Percentage = Freq / sum(Freq) * 100)
+stat.p0.05.Cup <- stat.p0.05.Cup[c(9,10,11,2,1,7,8,4,5,6,3),]
+stat.p0.05.Cup
+```
+
+
+```{r paged.print=FALSE}
+stat.p0.05.Pup <- data.frame(table(sapply((data.frame(peakAnno_DESeq2.p0.05@anno) %>% filter( Fold < 0 ))$annotation,
+                          function(x) strsplit(x,' (E', fixed = T)[[1]][1] )  )) %>%
+                   mutate(Percentage = Freq / sum(Freq) * 100)
+stat.p0.05.Pup <- stat.p0.05.Pup[c(5,6,7,1,3,4,2),]
+stat.p0.05.Pup
+```
+
+```{r fig.height=3.5, fig.width=6}
+ChIPseeker::plotAnnoPie(peakAnno_DESeq2, cex = 0.25,ndigit = 2,
+                               col = c("#A1CBDB","#47A3B9","#057DC4","#6E9F4E","#F16B61",
+                                       "#F46F40","#F5902E","#DABC86","#BDBEC0","#E4E290","#E2E2E2"),
+                        lty=1,lwd=0.001,border=NA)
+```
+
+```{r fig.height=3.5, fig.width=6}
+ChIPseeker::plotAnnoPie(peakAnno_DESeq2.p0.05, cex = 0.25,ndigit = 2,
+                               col = c("#A1CBDB","#47A3B9","#057DC4","#6E9F4E","#F16B61",
+                                       "#F46F40","#F5902E","#DABC86","#BDBEC0","#E4E290","#E2E2E2"),
+                        lty=1,lwd=0.001,border=NA)
+```
+
+```{r include=FALSE}
+peakAnno_DESeq2@anno$Fold <- 1000*peakAnno_DESeq2@anno$Fold
+peakAnno_DESeq2.p0.05@anno$Fold <- 1000*peakAnno_DESeq2.p0.05@anno$Fold
+```
+
+
+
+```{r eval=FALSE, include=FALSE}
+#
+pdf("diffpeak_deseq_p0.05/peakAnno_stat.allpeak.pdf",
+    width = 6.5, height = 3.5)
+ChIPseeker::plotAnnoPie(peakAnno_DESeq2, cex = 0.25,ndigit = 2,
+                               col = c("#A1CBDB","#47A3B9","#057DC4","#6E9F4E","#F16B61",
+                                       "#F46F40","#F5902E","#DABC86","#BDBEC0","#E4E290","#E2E2E2"),
+                        lty=1,lwd=0.001,border=NA)
+
+dev.off()
+
+write.csv(data.frame(peakAnno_DESeq2@anno),"diffpeak_deseq_p0.05/peakAnno_stat.DESeq2_all.csv")
+
+
+#
+pdf("diffpeak_deseq_p0.05/peakAnno_stat.DESeq2_p0.05.pdf",
+    width = 6.5, height = 3.5)
+ChIPseeker::plotAnnoPie(peakAnno_DESeq2.p0.05, cex = 0.25,ndigit = 2,
+                               col = c("#A1CBDB","#47A3B9","#057DC4","#6E9F4E","#F16B61",
+                                       "#F46F40","#F5902E","#DABC86","#BDBEC0","#E4E290","#E2E2E2"),
+                        lty=1,lwd=0.001,border=NA)
+
+dev.off()
+
+write.csv(data.frame(peakAnno_DESeq2.p0.05@anno),"diffpeak_deseq_p0.05/peakAnno_stat.DESeq2_p0.05.csv")
+
+```
+
+
+
+
+```{r}
+#data.frame(peakAnno_DESeq2.p0.05@anno)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

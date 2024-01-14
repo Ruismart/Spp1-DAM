@@ -1,0 +1,3006 @@
+---
+output: 
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+--- 
+
+
+# plus sc10x        
+
+
+i.P06 and P30.PBS           
+check DAM signature        
+            
+ii. P30.PBS and P30.LPS           
+check TDT difference/shift              
+
+              
+##### load dependancies                
+```{r message=FALSE, warning=FALSE, include=FALSE}
+source("I:/Shared_win/projects/RNA_normal/analysis.10x.r")
+```
+
+
+## cleaning up                      
+
+
+### processed obj             
+
+
+```{r}
+GEX.seur <- readRDS("../Spp1tdt.GEX.seur.sort1006.rds")
+GEX.seur
+```
+
+```{r}
+color.FB <- ggsci::pal_igv("default")(49)[c(8,32,40,
+                                            34,26,33,28,
+                                            2,43,18)]
+color.FBraw <-  c("#FF6C91","lightgrey",color.FB)
+```
+
+
+```{r fig.width=11.5,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "umap", label = T, group.by = "seurat_clusters") +
+  DimPlot(GEX.seur, reduction = "umap", label = F, group.by = "FB.info", cols = color.FB)
+```
+
+```{r fig.width=11.5,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "umap", label = T, group.by = "seurat_clusters") +
+  DimPlot(GEX.seur, reduction = "umap", label = F, group.by = "preAnno")
+```
+
+```{r fig.width=8.1, fig.height=8}
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        #ncol = 3, 
+        ncol = 2,
+        cols = color.FB,
+        pt.size = 0.1, group.by = "FB.info")
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        #ncol = 3, 
+        ncol = 2,
+        cols = color.FB,
+        pt.size = 0, group.by = "FB.info")
+```
+
+
+```{r fig.width=15,fig.height=4}
+plota <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.mt", group.by = "age") 
+plotb <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", group.by = "age") 
+plotc <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.rb", group.by = "age")
+plota + plotb + plotc
+```
+
+
+### filtering            
+
+
+```{r}
+GEX.seur <- subset(GEX.seur, subset= preAnno %in% c("Microglia") & DoubletFinder0.05 == "Singlet")
+GEX.seur
+```
+
+```{r fig.width=11.5,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "umap", label = T, group.by = "seurat_clusters") +
+  DimPlot(GEX.seur, reduction = "umap", label = F, group.by = "FB.info", cols = color.FB)
+```
+
+```{r fig.width=11,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "umap", label = T, group.by = "seurat_clusters") +
+  DimPlot(GEX.seur, reduction = "umap", label = F, group.by = "preAnno")
+```
+
+```{r fig.width=8.1, fig.height=8}
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        #ncol = 3, 
+        ncol = 2,
+        cols = color.FB,
+        pt.size = 0.1, group.by = "FB.info")
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        #ncol = 3, 
+        ncol = 2,
+        cols = color.FB,
+        pt.size = 0, group.by = "FB.info")
+```
+
+
+```{r fig.width=15,fig.height=4}
+plota <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.mt", group.by = "age") 
+plotb <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", group.by = "age") 
+plotc <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.rb", group.by = "age")
+plota + plotb + plotc
+```
+
+
+### subset2                   
+
+
+```{r}
+GEX.seur <- subset(GEX.seur, subset= age %in% c("P30.PBS","P30.LPS"))
+GEX.seur
+```
+
+```{r}
+color.FB2 <- color.FB[c(1:3,4:7)]
+```
+
+
+```{r fig.width=11.5,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "umap", label = T, group.by = "seurat_clusters") +
+  DimPlot(GEX.seur, reduction = "umap", label = F, group.by = "FB.info", cols = color.FB2)
+```
+
+```{r fig.width=11,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "umap", label = T, group.by = "seurat_clusters") +
+  DimPlot(GEX.seur, reduction = "umap", label = F, group.by = "preAnno")
+```
+
+```{r fig.width=8.1, fig.height=8}
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        #ncol = 3, 
+        ncol = 2,
+        cols = color.FB2,
+        pt.size = 0.1, group.by = "FB.info")
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        #ncol = 3, 
+        ncol = 2,
+        cols = color.FB2,
+        pt.size = 0, group.by = "FB.info")
+```
+
+
+```{r fig.width=15,fig.height=4}
+plota <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.mt", group.by = "age") 
+plotb <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", group.by = "age") 
+plotc <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.rb", group.by = "age")
+plota + plotb + plotc
+```
+
+
+```{r fig.width=10, fig.height=6.8}
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        ncol = 2,
+        pt.size = 0.05, group.by = "sort_clusters")
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        ncol = 2,
+        pt.size = 0, group.by = "sort_clusters")
+```
+
+#### advanced              
+
+```{r}
+GEX.seur <- subset(GEX.seur, subset= percent.mt < 7.5 & nFeature_RNA > 1000 & nFeature_RNA < 3200 & nCount_RNA < 9000)
+GEX.seur
+```
+
+
+```{r fig.width=11.5,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "umap", label = T, group.by = "seurat_clusters") +
+  DimPlot(GEX.seur, reduction = "umap", label = F, group.by = "FB.info", cols = color.FB2)
+```
+
+```{r fig.width=11,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "umap", label = T, group.by = "seurat_clusters") +
+  DimPlot(GEX.seur, reduction = "umap", label = F, group.by = "preAnno")
+```
+
+```{r fig.width=8.1, fig.height=8}
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        #ncol = 3, 
+        ncol = 2,
+        cols = color.FB2,
+        pt.size = 0.1, group.by = "FB.info")
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        #ncol = 3, 
+        ncol = 2,
+        cols = color.FB2,
+        pt.size = 0, group.by = "FB.info")
+```
+
+
+```{r fig.width=15,fig.height=4}
+plota <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.mt", group.by = "age") 
+plotb <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", group.by = "age") 
+plotc <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.rb", group.by = "age")
+plota + plotb + plotc
+```
+
+
+```{r fig.width=10, fig.height=6.8}
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        ncol = 2,
+        pt.size = 0.05, group.by = "sort_clusters")
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        ncol = 2,
+        pt.size = 0, group.by = "sort_clusters")
+```
+
+
+```{r fig.width=7.2,fig.height=4}
+par(mar=c(6,4,2,3))
+sl_stat <- table(GEX.seur$FB.info)
+barplot(sl_stat,ylim = c(0,3800),
+        col = c("#FF6C91","lightgrey",color.FB),
+        main = "Feature Barcode statistics",cex.names = 0.75, xaxt = "n")
+axis(1,1:12*1.2-0.48 ,levels(GEX.seur$FB.info), las=3, cex.axis=0.85)
+text(x=1:12*1.2-0.45,y=sl_stat+245,paste0(sl_stat,"\n",100*round(as.numeric(sl_stat/sum(sl_stat)),4),"%"),cex = 0.75)
+```
+
+
+## subset2         
+
+
+### re-clustering                
+
+
+```{r message=FALSE, warning=FALSE,fig.width=12,fig.height=5}
+GEX.seur <- FindVariableFeatures(GEX.seur, selection.method = "vst", nfeatures = 1800)
+
+# Identify the 10 most highly variable genes
+#top10 <- head(VariableFeatures(GEX.seur), 10)
+top20 <- head(VariableFeatures(GEX.seur), 20)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(GEX.seur)
+plot2 <- LabelPoints(plot = plot1, points = top20, repel = T)
+plot1 + plot2
+```
+
+
+```{r}
+head(VariableFeatures(GEX.seur), 300)
+```
+
+
+#### PCA       
+
+```{r}
+# exclude MT genes  and more 
+#   add sex-related Xist/Tsix
+
+DIG <- grep("^Tra|^Trb|^Trg|^Trd|^Tcr|^Igm|^Igh|^Igk|^Igl|Jchain|Mzb1|Vpreb|Lars2|Jun|Fos|Egr1|^Hsp|^Rps|^Rpl|Hbb-|Hba-|^Dnaj|^AC|^AI|^AA|^AW|^AY|^BC|^Gm|^Hist|Rik$|-ps|Xist|Tsix|^Ifi|^Isg|^Mcm",
+            rownames(GEX.seur),value = T)
+CC_gene <- Hmisc::capitalize(tolower(as.vector(unlist(cc.genes.updated.2019))))
+MT_gene <- grep("^mt-",rownames(GEX.seur),value = T)
+
+VariableFeatures(GEX.seur) <- setdiff(VariableFeatures(object = GEX.seur),
+                                                c(MT_gene,
+                                                  DIG, 
+                                                  CC_gene) )
+
+GEX.seur <- RunPCA(GEX.seur, features = VariableFeatures(GEX.seur))
+```
+
+```{r}
+#grep("tdTomato|Spp1|Cre",VariableFeatures(GEX.seur),value = T)
+```
+
+
+```{r}
+length(VariableFeatures(GEX.seur))
+head(VariableFeatures(GEX.seur),500)
+```
+
+
+
+```{r fig.width=11.8,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "pca",dims = 1:2, group.by = "orig.ident") +
+  DimPlot(GEX.seur, reduction = "pca",dims = 3:4, group.by = "orig.ident")
+```
+
+```{r fig.width=11.5,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "pca",dims = 1:2, group.by = "FB.info", cols = color.FB2) +
+  DimPlot(GEX.seur, reduction = "pca",dims = 3:4, group.by = "FB.info", cols = color.FB2)
+```
+
+```{r pcsheat,fig.width=12,fig.height=15}
+DimHeatmap(GEX.seur, dims = 1:12, cells = 1500, balanced = TRUE,ncol = 4)
+```
+
+
+```{r paged.print=FALSE}
+(GEX.seur@reductions$pca@feature.loadings %>% as.data.frame)[,1:8] %>% arrange(desc(PC_1) ) %>% head(40)
+```
+
+```{r paged.print=FALSE}
+(GEX.seur@reductions$pca@feature.loadings %>% as.data.frame)[,1:8] %>% arrange(PC_1 ) %>% head(40)
+```
+
+
+##### decide PCs to use          
+     
+```{r}
+ElbowPlot(GEX.seur,ndims = 50)
+```
+
+```{r}
+PCs <- 1:20
+GEX.seur <- FindNeighbors(GEX.seur, dims = PCs, k.param = 20)
+GEX.seur <- FindClusters(GEX.seur, method = 'igraph' ,resolution = 1.5)
+```
+
+
+#### Run UMAP/tSNE    
+
+```{r}
+GEX.seur <- RunTSNE(GEX.seur, dims=PCs, complexity = 100)
+GEX.seur <- RunUMAP(GEX.seur, dims=PCs, n.neighbors = 20, seed.use = 998)
+```
+
+
+```{r include=FALSE}
+#saveRDS(GEX.seur,"test.umap.rds")
+#saveRDS(GEX.seur,"Spp1tdt.subset2_P30LPS_P30PBS.sort1007.rds")
+GEX.seur <- readRDS("./Spp1tdt.subset2_P30LPS_P30PBS..new1008.rds")
+```
+
+
+```{r fig.width=10.5,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "tsne", label = T) + DimPlot(GEX.seur, reduction = "umap", label = T)
+```
+
+
+```{r fig.width=7.5,fig.height=6}
+FeaturePlot(GEX.seur, reduction = "umap", features = c("nFeature_RNA","nCount_RNA","percent.mt","percent.rb"))
+```
+
+```{r}
+GEX.seur$FB.new <- factor(as.character(GEX.seur$FB.info),
+                          levels = levels(GEX.seur$FB.info)[c(9,8,6,7,5:3)])
+```
+
+
+```{r  fig.width=12, fig.height=6.4}
+DimPlot(GEX.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "FB.new", split.by = "FB.new", 
+        ncol = 4, cols = color.FB2[c(7,6,4,5,3,2,1)])
+``` 
+
+
+```{r fig.width=11.5,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "umap", label = T, group.by = "seurat_clusters") +
+  DimPlot(GEX.seur, reduction = "umap", label = F, group.by = "FB.info", cols = color.FB2)
+```
+
+
+#### check some markers  
+
+```{r}
+markers.mig <- c("Ptprc",#"Cd3d","Cd3e","Cd19",
+                 "Cd74","Lyz2","Ccl4",
+                 "Aif1","P2ry12","C1qa","Spp1",
+                 "Top2a","Pcna","Mki67","Mcm6",
+                 "Cx3cr1","Il4ra","Il13ra1","Fabp5",
+                 "Hmox1","Ms4a7","Pf4","Tubb3",
+                 "tdTomato-head","tdTomato-mid","tdTomato-tail","CreERT2"
+                 )
+```
+
+
+
+```{r fig.width=12, fig.height=15}
+FeaturePlot(GEX.seur, 
+            features = markers.mig,
+            ncol = 4)
+```
+
+
+
+```{r fig.width=9,fig.height=5.4}
+DotPlot(GEX.seur, features = markers.mig, group.by = "FB.info",
+                         cols = c("midnightblue","darkorange1")) +
+                 theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1))#+ scale_y_discrete(limits=rev)
+```
+
+```{r fig.width=9,fig.height=6}
+VlnPlot(GEX.seur, features = c("tdTomato-head","tdTomato-mid","tdTomato-tail","CreERT2"),
+        group.by = "FB.info", ncol = 2)
+```
+
+
+
+```{r fig.width=9,fig.height=5.4}
+DotPlot(GEX.seur, features = c(markers.mig,"Ifit1","Ifit2"), group.by = "seurat_clusters",
+                         cols = c("midnightblue","darkorange1")) +
+                 theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1))#+ scale_y_discrete(limits=rev)
+```
+
+
+### sort             
+
+
+```{r}
+GEX.seur$sort_clusters <- factor(as.character(GEX.seur$seurat_clusters),
+                                 levels = c(2,1,8,7,9,
+                                            14,
+                                            12,3,5,0,4,6,11,13,10))
+```
+
+
+```{r fig.width=6.4, fig.height=4}
+cowplot::plot_grid(
+pheatmap::pheatmap(table(FB.info=GEX.seur$FB.new,
+      clusters=GEX.seur$sort_clusters),
+                   main = "Cell Count",
+                   gaps_row = c(4),
+      #gaps_col = c(12,13,14),
+                   cluster_rows = F, cluster_cols = F, display_numbers = T, number_format = "%.0f", legend = F, silent = T)$gtable,
+
+pheatmap::pheatmap(100*rowRatio(table(FB.info=GEX.seur$FB.new,
+                                clusters=GEX.seur$sort_clusters)),
+                   main = "Cell Ratio",
+                   gaps_row = c(4),
+      #gaps_col = c(12,13,14),
+                   cluster_rows = F, cluster_cols = F, display_numbers = T, number_format = "%.1f", legend = F, silent =T)$gtable,
+ncol = 1)
+```
+
+### markers       
+
+
+```{r message=FALSE, warning=FALSE, paged.print=TRUE}
+# find markers for every cluster compared to all remaining cells, report only the positive ones
+Idents(GEX.seur) <- "sort_clusters"
+
+#GEX.markers.pre <- FindAllMarkers(GEX.seur, only.pos = TRUE, 
+#                                  min.pct = 0.05,
+#                                  test.use = "MAST",
+#                                  logfc.threshold = 0.25)
+GEX.markers.pre <- read.table("sc10x_LYN.marker.subset2_sort1007.csv", header = TRUE, sep = ",")
+GEX.markers.pre %>% group_by(cluster) %>% top_n(n = 8, wt = avg_log2FC)
+```
+
+
+```{r eval=FALSE, include=FALSE}
+write.table(GEX.markers.pre, 
+            "sc10x_LYN.marker.subset2_sort1007.csv", 
+            col.names = TRUE,
+            row.names = FALSE,
+            quote = F,
+            sep = ",")
+```
+
+
+```{r}
+GEX.markers.sort <- GEX.markers.pre
+GEX.markers.sort$cluster <- factor(as.character(GEX.markers.sort$cluster),
+                          levels = levels(GEX.seur$sort_clusters))
+
+
+markers.pre_t48 <- (GEX.markers.sort %>% group_by(cluster) %>% 
+                  filter(pct.1>0.1) %>%
+                   top_n(n = 48, wt = avg_log2FC) %>%
+                   ungroup() %>%
+  arrange(desc(avg_log2FC*pct.1),gene) %>%
+                             distinct(gene, .keep_all = TRUE) %>%
+                             arrange(cluster,p_val_adj))$gene
+
+markers.pre_t60 <- (GEX.markers.sort %>% group_by(cluster) %>% 
+                  filter(pct.1>0.1 & gene %in% grep("Rps|Rpl",GEX.markers.sort$gene,invert = T,value = T)) %>%
+                   top_n(n = 60, wt = avg_log2FC) %>%
+                   ungroup() %>%
+  arrange(desc(avg_log2FC*pct.1),gene) %>%
+                             distinct(gene, .keep_all = TRUE) %>%
+                             arrange(cluster,p_val_adj))$gene
+
+markers.pre_t120 <- (GEX.markers.sort %>% group_by(cluster) %>% 
+                  filter(pct.1>0.1 & gene %in% grep("Rps|Rpl",GEX.markers.sort$gene,invert = T,value = T)) %>%
+                   top_n(n = 120, wt = avg_log2FC) %>%
+                   ungroup() %>%
+  arrange(desc(avg_log2FC*pct.1),gene) %>%
+                             distinct(gene, .keep_all = TRUE) %>%
+                             arrange(cluster,p_val_adj))$gene
+```
+
+
+```{r fig.width=7.6, fig.height=9.6}
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[1:64]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[65:128]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[129:192]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[193:256]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[257:320]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[321:384]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[385:448]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[449:498]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[499:529]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+```
+
+
+```{r eval=FALSE, fig.height=9.6, fig.width=7.6, include=FALSE}
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t120[1:64]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t120[65:128]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t120[129:192]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t120[193:256]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t120[257:320]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t120[321:384]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t120[385:448]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t120[449:512]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t120[513:576]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t120[577:640]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t120[641:704]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t120[705:768]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t120[769:832]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t120[833:896]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t120[897:924]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+```
+
+
+```{r}
+GEX.seur$cnt <- as.character(GEX.seur$FB.info)
+GEX.seur$cnt[GEX.seur$cnt %in% c("P30.LPS.TDT1","P30.LPS.TDT2")] <- "P30.LPS.TDT"
+
+GEX.seur$cnt <- factor(GEX.seur$cnt,
+                       levels = c("P30.PBS.CTR","P30.PBS.MIG","P30.PBS.TDT",
+                                  "P30.LPS.CTR","P30.LPS.MIG","P30.LPS.TDT"))
+color.cnt <- rev(color.FB2)[c(5:7,1:2,4)]
+```
+
+
+
+## subset2 DEGs         
+
+### DEGs.a                   
+
+
+
+```{r}
+GEX.comp <- GEX.seur
+Idents(GEX.comp) <- "cnt"
+```
+
+
+```{r}
+GEX.comp
+```
+
+```{r}
+GEX.comp$cnt[1:6]
+```
+
+
+```{r}
+DEGs.a <- list()
+
+
+for(mm in c("P30.PBS","P30.LPS")){
+  for(nn in c("CTR","MIG")){
+    DEGs.a[[paste0(mm,".TDTvs",nn)]] <- FindAllMarkers(subset(GEX.comp, subset = cnt %in% c(paste0(mm,".",nn),paste0(mm,".TDT")) & age %in% c(mm)),
+                                                       assay = "RNA",
+                                                       only.pos = T,
+                                                       min.pct = 0.05, 
+                                                       logfc.threshold = 0.1,
+                                                       test.use = "MAST")
+    
+     
+  }
+}
+
+```
+
+
+```{r}
+#DEGs.a
+```
+
+```{r}
+names(DEGs.a)
+```
+
+```{r}
+# save DEGs' table
+df.DEGs.a <- data.frame()
+
+for(nn in names(DEGs.a)){
+  df.DEGs.a <- rbind(df.DEGs.a, data.frame(DEGs.a[[nn]], contrast = nn))
+}
+
+#write.csv(df.DEGs.a, "DEGs.a.subset2.csv")
+```
+
+
+#### DEG stat              
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+cut.padj = 0.05
+cut.log2FC = 0.3   
+  
+cut.pct1 = 0.05
+
+df.DEGs.a %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(contrast,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame()
+  
+```
+
+
+```{r}
+pp.stat.DEG <- list()
+```
+
+
+```{r}
+df.DEGs.a$cluster <- factor(as.character(df.DEGs.a$cluster),
+                            levels = levels(GEX.seur$cnt)[c(4:6,1:3)])
+```
+
+
+```{r message=FALSE, warning=FALSE}
+pp.stat.DEG[["a"]] <- df.DEGs.a %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(contrast,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame() %>%
+  ggplot(aes(x=contrast, y=up.DEGs, color = cluster)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  geom_text(aes(label = up.DEGs),vjust=-0.21, show.legend = F, position = position_dodge(0.75) ) +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = color.cnt, name="") +
+  labs(title=paste0("up.DEGs stat, pct.1>0.05, padj<",cut.padj,", |log2FC|>",cut.log2FC), y = "Number of DEGs") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6),
+        title =element_text(size=12, face='bold'))
+pp.stat.DEG[["a"]]
+```
+
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+cut.padj = 0.05
+cut.log2FC = 0.25#0.3   
+  
+cut.pct1 = 0.05
+
+df.DEGs.a %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(contrast,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame()
+  
+```
+
+```{r message=FALSE, warning=FALSE}
+pp.stat.DEG[["a1"]] <- df.DEGs.a %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(contrast,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame() %>%
+  ggplot(aes(x=contrast, y=up.DEGs, color = cluster)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  geom_text(aes(label = up.DEGs),vjust=-0.21, show.legend = F, position = position_dodge(0.75) ) +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = color.cnt, name="") +
+  labs(title=paste0("up.DEGs stat, pct.1>0.05, padj<",cut.padj,", |log2FC|>",cut.log2FC), y = "Number of DEGs") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6),
+        title =element_text(size=12, face='bold'))
+pp.stat.DEG[["a1"]]
+```
+
+#### DEG plot             
+
+
+```{r}
+pp.DEGs.a <- lapply(DEGs.a, function(x){NA})
+```
+
+```{r}
+names(DEGs.a)
+```
+
+
+```{r}
+DEGs.a.combine <- DEGs.a
+DEGs.a.combine <- lapply(DEGs.a.combine, function(x){
+  for(zz in c("P30.LPS.MIG","P30.LPS.CTR","P30.PBS.MIG","P30.PBS.CTR")){
+    x[x$cluster==zz,"avg_log2FC"] <- -x[x$cluster==zz,"avg_log2FC"]
+  }
+  
+  x
+})
+
+```
+
+
+```{r fig.width=12, fig.height=6}
+pp.DEGs.a$P30.LPS.TDTvsCTR <- DEGs.a.combine$P30.LPS.TDTvsCTR %>%
+  mutate(label=ifelse(((p_val_adj < 1e-8 & avg_log2FC<0) | (p_val_adj < 1e-8 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        !grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"CTR",ifelse(p_val_adj<0.05 & avg_log2FC>0,"TDT","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("CTR"="Skyblue",
+                               "TDT"="pink",
+                               "None"="grey")) +
+  theme_classic() + labs(title="P30.LPS, TDT vs CTR") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted") #+ xlim(c(-1,2))
+pp.DEGs.a$P30.LPS.TDTvsCTR
+```
+
+
+```{r fig.width=12, fig.height=6}
+pp.DEGs.a$P30.LPS.TDTvsMIG <- DEGs.a.combine$P30.LPS.TDTvsMIG %>%
+  mutate(label=ifelse(((p_val_adj < 1e-8 & avg_log2FC<0) | (p_val_adj < 1e-8 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        !grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"MIG",ifelse(p_val_adj<0.05 & avg_log2FC>0,"TDT","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("MIG"="Skyblue",
+                               "TDT"="pink",
+                               "None"="grey")) +
+  theme_classic() + labs(title="P30.LPS, TDT vs MIG") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted") #+ xlim(c(-1,1))
+pp.DEGs.a$P30.LPS.TDTvsMIG
+```
+
+
+```{r fig.width=12, fig.height=6}
+pp.DEGs.a$P30.PBS.TDTvsCTR <- DEGs.a.combine$P30.PBS.TDTvsCTR %>%
+  mutate(label=ifelse(((p_val_adj < 1e-3 & avg_log2FC<0) | (p_val_adj < 1e-3 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        !grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"CTR",ifelse(p_val_adj<0.05 & avg_log2FC>0,"TDT","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("CTR"="Skyblue",
+                               "TDT"="pink",
+                               "None"="grey")) +
+  theme_classic() + labs(title="P30.PBS, TDT vs CTR") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted") #+ xlim(c(-1,2))
+pp.DEGs.a$P30.PBS.TDTvsCTR
+```
+
+
+```{r fig.width=12, fig.height=6}
+pp.DEGs.a$P30.PBS.TDTvsMIG <- DEGs.a.combine$P30.PBS.TDTvsMIG %>%
+  mutate(label=ifelse(((p_val_adj < 1e-3 & avg_log2FC<0) | (p_val_adj < 1e-3 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        !grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"MIG",ifelse(p_val_adj<0.05 & avg_log2FC>0,"TDT","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("MIG"="Skyblue",
+                               "TDT"="pink",
+                               "None"="grey")) +
+  theme_classic() + labs(title="P30.PBS, TDT vs MIG") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted") #+ xlim(c(-1,2))
+pp.DEGs.a$P30.PBS.TDTvsMIG
+```
+
+
+### DEGs.b                   
+
+
+
+```{r}
+GEX.comp <- GEX.seur
+Idents(GEX.comp) <- "age"
+```
+
+
+```{r}
+GEX.comp
+```
+
+```{r}
+GEX.comp$age[1:6]
+```
+
+```{r}
+list.b <- list(P30.CTR = c("P30.PBS.CTR","P30.LPS.CTR"),
+               P30.MIG = c("P30.PBS.MIG","P30.LPS.MIG"),
+               P30.TDT = c("P30.PBS.TDT","P30.LPS.TDT"))
+list.b
+```
+
+```{r}
+names(list.b)
+```
+
+```{r}
+DEGs.b <- list()
+
+for(nn in names(list.b)){
+  
+  DEGs.b[[nn]] <- FindAllMarkers(subset(GEX.comp, subset = age %in% c("P30.PBS","P30.LPS") & cnt %in% list.b[[nn]]),
+                                 assay = "RNA",
+                                 only.pos = T,
+                                 min.pct = 0.05,
+                                 logfc.threshold = 0.1,
+                                 test.use = "MAST")
+  
+  
+}
+```
+
+
+```{r}
+#DEGs.b
+```
+
+```{r}
+names(DEGs.b)
+```
+
+```{r}
+# save DEGs' table
+df.DEGs.b <- data.frame()
+
+for(nn in names(DEGs.b)){
+  df.DEGs.b <- rbind(df.DEGs.b, data.frame(DEGs.b[[nn]], condition = nn))
+}
+
+#write.csv(df.DEGs.b, "DEGs.b.subset2.csv")
+```
+
+
+#### DEG stat              
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+cut.padj = 0.05
+cut.log2FC = 0.3   
+  
+cut.pct1 = 0.05
+
+df.DEGs.b %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(condition,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame()
+  
+```
+
+
+```{r}
+pp.stat.DEG <- list()
+```
+
+
+```{r}
+df.DEGs.b$cluster <- factor(as.character(df.DEGs.b$cluster),
+                            levels = c("P30.PBS","P30.LPS"))
+```
+
+
+```{r message=FALSE, warning=FALSE}
+pp.stat.DEG[["b"]] <- df.DEGs.b %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(condition,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame() %>%
+  ggplot(aes(x=condition, y=up.DEGs, color = cluster)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  geom_text(aes(label = up.DEGs),vjust=-0.21, show.legend = F, position = position_dodge(0.75) ) +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = c("skyblue","pink"), name="") +
+  labs(title=paste0("up.DEGs stat, pct.1>0.05, padj<",cut.padj,", |log2FC|>",cut.log2FC), y = "Number of DEGs") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6),
+        title =element_text(size=12, face='bold'))
+pp.stat.DEG[["b"]]
+```
+
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+cut.padj = 0.05
+cut.log2FC = 0.3   
+  
+cut.pct1 = 0.05
+
+df.DEGs.b %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(condition,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame()
+  
+```
+
+
+```{r message=FALSE, warning=FALSE}
+pp.stat.DEG[["b"]] <- df.DEGs.b %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(condition,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame() %>%
+  ggplot(aes(x=condition, y=up.DEGs, color = cluster)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  geom_text(aes(label = up.DEGs),vjust=-0.21, show.legend = F, position = position_dodge(0.75) ) +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = c("skyblue","pink"), name="") +
+  labs(title=paste0("up.DEGs stat, pct.1>",cut.pct1,", padj<",cut.padj,", |log2FC|>",cut.log2FC), y = "Number of DEGs") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6),
+        title =element_text(size=12, face='bold'))
+pp.stat.DEG[["b"]]
+```
+
+
+
+#### DEG plot             
+
+
+```{r}
+pp.DEGs.b <- lapply(DEGs.b, function(x){NA})
+```
+
+```{r}
+names(DEGs.b)
+```
+
+
+```{r}
+DEGs.b.combine <- DEGs.b
+DEGs.b.combine <- lapply(DEGs.b.combine, function(x){
+  x[x$cluster=="P30.PBS","avg_log2FC"] <- -x[x$cluster=="P30.PBS","avg_log2FC"]
+  x
+})
+
+```
+
+
+
+##### CTR                
+
+```{r fig.height=6, fig.width=12, message=FALSE, warning=FALSE}
+pp.DEGs.b$P30.CTR <- DEGs.b.combine$P30.CTR %>%
+  mutate(label=ifelse(((p_val_adj < 1e-100 & avg_log2FC<0) | (p_val_adj < 1e-100 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        !grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"P30.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"P30.LPS","None")),
+         padj=ifelse(p_val_adj<1e-300,p_val_adj+1e-300,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("P30.PBS"="Skyblue",
+                               "P30.LPS"="pink",
+                               "None"="grey")) +
+  theme_classic() + labs(title="CTR, P30.PBS vs P30.LPS") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted") + xlim(c(-1,2))
+pp.DEGs.b$P30.CTR
+```
+
+
+##### MIG                
+
+```{r fig.height=6, fig.width=12, message=FALSE, warning=FALSE}
+pp.DEGs.b$P30.MIG <- DEGs.b.combine$P30.MIG %>%
+  mutate(label=ifelse(((p_val_adj < 1e-80 & avg_log2FC<0) | (p_val_adj < 1e-80 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        !grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"P30.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"P30.LPS","None")),
+         padj=ifelse(p_val_adj<1e-300,p_val_adj+1e-300,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("P30.PBS"="Skyblue",
+                               "P30.LPS"="pink",
+                               "None"="grey")) +
+  theme_classic() + labs(title="MIG, P30.PBS vs P30.LPS") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted") + xlim(c(-1,2))
+pp.DEGs.b$P30.MIG
+```
+
+
+
+##### TDT               
+
+```{r fig.height=6, fig.width=12, message=FALSE, warning=FALSE}
+pp.DEGs.b$P30.TDT <- DEGs.b.combine$P30.TDT %>%
+  mutate(label=ifelse(((p_val_adj < 1e-80 & avg_log2FC<0) | (p_val_adj < 1e-80 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        !grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"P30.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"P30.LPS","None")),
+         padj=ifelse(p_val_adj<1e-300,p_val_adj+1e-300,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("P30.PBS"="Skyblue",
+                               "P30.LPS"="pink",
+                               "None"="grey")) +
+  theme_classic() + labs(title="TDT, P30.PBS vs P30.LPS") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted") + xlim(c(-1,2))
+pp.DEGs.b$P30.TDT
+```
+
+
+## signature score             
+
+
+```{r}
+
+#### 10x data, calculate signature score       
+#
+## The code below is from Adam Hamber
+## 2D scoring by Itay
+get_controls <- function(counts, gene.list, verbose=F, control.genes.per.gene=10)
+{
+    # Itay: "Such scores are inevitably correlated with cell complexity so to avoid 
+    # that I subtract a "control" score which is generated by averaging over a control 
+    # gene set. Control gene sets are chosen to contain 100 times more genes than the 
+    # real gene set (analogous to averaging over 100 control sets of similar size) and 
+    # to have the same distribution of population/bulk - based expression levels as the 
+    # real gene set, such that they are expected to have the same number of "zeros" and 
+    # to eliminate the correlation with complexity."
+    # ---------------------------------------------------------------------------------
+    # Going to find control points by finding the closest genes in terms of expression level and % of the time we observe it
+    if(verbose){cat(sprintf("Finding %s background genes based on similarity to given gene set [%s genes] \n", 
+                            control.genes.per.gene*length(gene.list), length(gene.list)))}
+    cat("Summarizing data \n")
+    summary = data.frame(gene=row.names(counts), mean.expr = Matrix::rowMeans(counts), fract.zero = Matrix::rowMeans(counts==0), stringsAsFactors = F)
+    #summary = data.frame(gene=row.names(counts), mean.expr = apply(counts,1,mean), fract.zero = apply(counts==0,1,mean), stringsAsFactors = F)
+    summary$mean.expr.s = scale(summary$mean.expr)
+    summary$fract.zero.s = scale(summary$fract.zero)
+    actual.genes = summary[summary$gene %in% gene.list,]
+    background.genes = summary[!summary$gene %in% gene.list,]
+    
+    #find the 10 closest genes to each cell cycle marker gene and add them to the lists of control genes
+    get_closest_genes <- function(i)
+    {
+        background.genes$dist = sqrt((background.genes$mean.expr.s - actual.genes$mean.expr.s[i])^2 + 
+                                         (background.genes$fract.zero.s - actual.genes$fract.zero.s[i])^2)
+        ordered = background.genes$gene[order(background.genes$dist)]
+        ordered = ordered[!ordered %in% controls] # don't take genes that already appear in the list 
+        closest = head(ordered, n=control.genes.per.gene)
+        return(closest)
+    }
+    controls = c();
+    
+    for (i in 1:length(gene.list)){
+        #info(sprintf("Finding %s control genes for %s", control.genes.per.gene, gene.list[i]))
+        closest = get_closest_genes(i)
+        #info(sprintf("Found %s: ", length(closest)))
+        controls = unique(c(controls, closest))
+    }
+    
+    if(verbose){cat(sprintf("Control gene selection complete. %s genes found. \n", length(controls)))}
+    #print(controls)
+    return(controls)
+}
+
+## Define calculate function
+calculate_signature_score <- function(count_matrix, gene_list){
+    control_gene <- get_controls(counts = count_matrix,
+                                 gene.list = gene_list)
+    signature_score <- colMeans(count_matrix[gene_list, ], na.rm = TRUE) - 
+        colMeans(count_matrix[control_gene, ], na.rm = TRUE)
+    return(signature_score)
+}
+
+add_geneset_score <- function(obj, geneset, setname){
+  score <- calculate_signature_score(as.data.frame(obj@assays[['RNA']]@data),
+                                     geneset)
+  obj <- AddMetaData(obj,
+                     score,
+                     setname)
+  return(obj)
+}
+```
+
+
+```{r}
+## proc_DEG()
+#       to process edgeR result for DEGs' comparison
+#              mat_cut is a matrix after advanced filtering, 'like TPM > n in at least one condition'
+# 
+
+proc_DEG <- function(deg, p.cut=0.05, FC.cut = 2, padj=TRUE, abs=TRUE, mat_cut=NULL, gene_cut=NULL){
+    rownames(deg) <- deg$gene
+    
+    if(padj==TRUE){
+        deg <- deg %>% filter(padj < p.cut)
+    }else{
+        deg <- deg %>% filter(pvalue < p.cut)
+    }
+    
+    if(abs==TRUE){
+        deg <- deg %>% filter(abs(FC) > FC.cut)
+    }else if(FC.cut >0){
+        deg <- deg %>% filter(FC > FC.cut)
+    }else{
+        deg <- deg %>% filter(FC < FC.cut)
+    }
+    
+    if(!is.null(mat_cut)){
+        deg <- deg[rownames(deg) %in% rownames(mat_cut),]
+    }
+    if(!is.null(gene_cut)){
+        deg <- deg[rownames(deg) %in% gene_cut,]
+    }
+    return(deg)
+}
+```
+
+
+
+```{r}
+#saveRDS(GEX.seur, "Spp1tdt.subset2_P30LPS_P30PBS.sort1007.rds")
+```
+
+
+```{r}
+DEG.list <- list(LPS.TDT= (df.DEGs.a %>% filter(p_val_adj < 0.05 & 
+                                               abs(avg_log2FC) > 0.1 & 
+                                               pct.1 > 0.05 & contrast == "P30.LPS.TDTvsCTR" &
+                                               cluster == "P30.LPS.TDT"))$gene,
+                 LPS.CTR= (df.DEGs.a %>% filter(p_val_adj < 0.05 & 
+                                               abs(avg_log2FC) > 0.1 & 
+                                               pct.1 > 0.05 & contrast == "P30.LPS.TDTvsCTR" &
+                                               cluster == "P30.LPS.CTR"))$gene)
+```
+
+
+```{r}
+DEG.list
+```
+
+```{r}
+lapply(DEG.list, length)
+```
+
+```{r}
+GEX.seur <- add_geneset_score(GEX.seur, DEG.list$LPS.TDT, "LPS.TDT.up")
+GEX.seur <- add_geneset_score(GEX.seur, DEG.list$LPS.CTR, "LPS.TDT.dn")
+```
+
+
+```{r fig.height=4, fig.width=8, message=FALSE, warning=FALSE}
+ppnew.2.v1 <- VlnPlot(GEX.seur, features = c("LPS.TDT.up","LPS.TDT.dn"), 
+                      group.by = "cnt", cols = color.cnt,
+                      ncol = 2, pt.size = 0, raster = F) & geom_jitter(alpha=0.15, shape=16, width = 0.2, size = 0.02)
+ppnew.2.v1
+```
+
+
+```{r fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
+ppnew.2.v1a <- VlnPlot(GEX.seur, features = c("LPS.TDT.up","LPS.TDT.dn")[1], 
+                      same.y.lims = T,
+                      group.by = "cnt", cols = color.cnt,
+                      ncol = 1, pt.size = 0, raster = F) & 
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+  stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) &
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("P30.PBS.CTR","P30.PBS.MIG"),
+                                                  c("P30.PBS.MIG","P30.PBS.TDT"),
+                                                  c("P30.PBS.CTR","P30.PBS.TDT"),
+                                                  c("P30.LPS.CTR","P30.LPS.MIG"),
+                                                  c("P30.LPS.MIG","P30.LPS.TDT"),
+                                                  c("P30.LPS.CTR","P30.LPS.TDT"),
+                                                  c("P30.PBS.TDT","P30.LPS.TDT")),
+                               label.y = c(0.55,0.75,0.95,0.55,0.75,0.95,1.1),
+                               size=3
+                               )
+ppnew.2.v1a
+```
+
+
+```{r fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
+ppnew.2.v1b <- VlnPlot(GEX.seur, features = c("LPS.TDT.up","LPS.TDT.dn")[2], 
+                      same.y.lims = T,
+                      group.by = "cnt", cols = color.cnt,
+                      ncol = 1, pt.size = 0, raster = F) & 
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+  stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & ylim(c(-0.23,0.57)) &
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("P30.PBS.CTR","P30.PBS.MIG"),
+                                                  c("P30.PBS.MIG","P30.PBS.TDT"),
+                                                  c("P30.PBS.CTR","P30.PBS.TDT"),
+                                                  c("P30.LPS.CTR","P30.LPS.MIG"),
+                                                  c("P30.LPS.MIG","P30.LPS.TDT"),
+                                                  c("P30.LPS.CTR","P30.LPS.TDT")#,
+                                                  #c("P30.PBS.TDT","P30.LPS.TDT")
+                                                  ),
+                               label.y = c(0.25,0.3,0.4,0.35,0.4,0.5,0.55),
+                               size=3
+                               )
+ppnew.2.v1b
+```
+
+
+```{r fig.width=5.6, fig.height=3.2}
+DotPlot(GEX.seur, features = c("LPS.TDT.dn","LPS.TDT.up"), group.by = "cnt", cols = c("midnightblue","darkorange1"), scale = F, scale.by = "size", scale.min = 1, scale.max = 1, dot.scale = 12)  + 
+  coord_flip() + labs(title="mean signature score") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6)) 
+
+
+```
+
+
+```{r fig.width=5.6, fig.height=3.2}
+GEX.seur@meta.data[,c("cnt","LPS.TDT.dn","LPS.TDT.up")] %>% 
+  reshape2::melt("cnt") %>%
+  ggplot(aes(x = cnt, y = variable, color=value)) +
+  geom_point(size=12) +
+  scale_color_gradientn(colors = c("midnightblue","darkorange1")) +
+  theme_classic()  + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+  
+```
+
+
+## new clusters                  
+
+
+```{r}
+GEX.seur$new_clusters <- as.character(GEX.seur$seurat_clusters)
+
+GEX.seur$new_clusters[GEX.seur$new_clusters %in% c(1)] <- "C1"
+GEX.seur$new_clusters[GEX.seur$new_clusters %in% c(2,8,7,14)] <- "C2"
+GEX.seur$new_clusters[GEX.seur$new_clusters %in% c(9)] <- "C3"
+GEX.seur$new_clusters[GEX.seur$new_clusters %in% c(12)] <- "C4"
+GEX.seur$new_clusters[GEX.seur$new_clusters %in% c(3)] <- "C5"
+GEX.seur$new_clusters[GEX.seur$new_clusters %in% c(5)] <- "C6"
+GEX.seur$new_clusters[GEX.seur$new_clusters %in% c(0,4)] <- "C7"
+GEX.seur$new_clusters[GEX.seur$new_clusters %in% c(6)] <- "C8"
+GEX.seur$new_clusters[GEX.seur$new_clusters %in% c(11)] <- "C9"
+GEX.seur$new_clusters[GEX.seur$new_clusters %in% c(13)] <- "C10"
+GEX.seur$new_clusters[GEX.seur$new_clusters %in% c(10)] <- "C11"
+
+GEX.seur$new_clusters <- factor(GEX.seur$new_clusters,
+                                levels = paste0("C",1:11))
+```
+
+
+```{r paged.print=FALSE}
+head(GEX.seur@meta.data)
+```
+
+
+```{r}
+#
+GEX.seur$age1 <- factor(as.character(GEX.seur$age),
+                        levels = c("P30.PBS","P30.LPS"))
+
+#
+GEX.seur$FB.new <- factor(as.character(GEX.seur$FB.info),
+                          levels = rev(levels(GEX.seur$FB.info))[c(8:10,4,5,7,6)])
+
+color.FBnew <- color.FB2[c(3:1,7,6,4,5)]
+```
+
+
+```{r}
+head(GEX.seur$cnt)
+```
+
+```{r fig.width=9,fig.height=5.4}
+DotPlot(GEX.seur, features = c(markers.mig,"Ifit1","Ifit2"), group.by = "new_clusters",
+                         cols = c("midnightblue","darkorange1")) +
+                 theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1))#+ scale_y_discrete(limits=rev)
+```
+
+### new markers                
+
+```{r message=FALSE, warning=FALSE, paged.print=TRUE}
+# find markers for every cluster compared to all remaining cells, report only the positive ones
+Idents(GEX.seur) <- "new_clusters"
+
+#GEX.markers.new <- FindAllMarkers(GEX.seur, only.pos = TRUE, 
+#                                  min.pct = 0.05,
+#                                  test.use = "MAST",
+#                                  logfc.threshold = 0.25)
+GEX.markers.new <- read.table("sc10x_LYN.0921.marker.subset2_new.csv", header = TRUE, sep = ",")
+GEX.markers.new %>% group_by(cluster) %>% top_n(n = 8, wt = avg_log2FC)
+```
+
+
+```{r eval=FALSE, include=FALSE}
+write.table(GEX.markers.new, 
+            "sc10x_LYN.0921.marker.subset2_new.csv", 
+            col.names = TRUE,
+            row.names = FALSE,
+            quote = F,
+            sep = ",")
+```   
+    
+      
+```{r}
+markers.new <- GEX.markers.new
+markers.new$cluster <- factor(as.character(GEX.markers.new$cluster),
+                               levels = levels(GEX.seur$new_clusters))
+
+markers.new_t60 <- (markers.new %>% group_by(cluster) %>% 
+                  filter(pct.1>0.1 & gene %in% grep("Rps|Rpl|Gm|Rik$|Xist|Tsix",markers.new$gene,invert = T,value = T)) %>%
+                   top_n(n = 60, wt = avg_log2FC) %>%
+                   ungroup() %>%
+  #arrange(desc(avg_log2FC*pct.1),gene) %>%
+    arrange(desc(pct.1),gene) %>%
+                             distinct(gene, .keep_all = TRUE) %>%
+                             arrange(cluster,p_val_adj))$gene
+```
+      
+      
+```{r fig.width=7.6, fig.height=9.6}
+DotPlot(GEX.seur, group.by = "new_clusters", features = rev(markers.new_t60[1:64]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "new_clusters", features = rev(markers.new_t60[65:128]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "new_clusters", features = rev(markers.new_t60[129:192]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "new_clusters", features = rev(markers.new_t60[193:256]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "new_clusters", features = rev(markers.new_t60[257:320]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "new_clusters", features = rev(markers.new_t60[321:384]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "new_clusters", features = rev(markers.new_t60[385:436]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+
+```   
+
+
+
+### plot1          
+
+umap in clusters      
+
+```{r fig.width=11,fig.height=4.5}
+pp.umap.1a <- DimPlot(GEX.seur, reduction = "umap", label = T, group.by = "seurat_clusters", raster = F, pt.size = 0.3) +
+           DimPlot(GEX.seur, reduction = "umap", label = F, group.by = "FB.new", cols = color.FBnew, raster = F, pt.size = 0.3)
+pp.umap.1a
+```
+
+```{r fig.width=11,fig.height=4.5}
+pp.umap.1b <- DimPlot(GEX.seur, reduction = "umap", label = T, group.by = "new_clusters", repel = F, raster = F, pt.size = 0.3) +
+           DimPlot(GEX.seur, reduction = "umap", label = F, group.by = "cnt", cols = color.cnt, raster = F, pt.size = 0.3)
+pp.umap.1b
+```
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("./figure1008/subset2.plot1.umap.a.big.pdf",
+       width = 11,height = 4.5,
+       plot = pp.umap.1a) 
+ggsave("./figure1008/subset2.plot1.umap.b.big.pdf",
+       width = 11,height = 4.5,
+       plot = pp.umap.1b) 
+```
+
+
+### plot2        
+
+
+```{r  fig.width=9.8, fig.height=6.4}
+pp.umap.2a <- DimPlot(GEX.seur, label = F,  repel = F, reduction = 'umap', group.by = "cnt", split.by = "cnt", raster = F, pt.size = 0.3,
+        ncol = 3, cols = color.cnt)
+pp.umap.2a
+``` 
+
+
+```{r  fig.width=8.5, fig.height=4.4}
+pp.umap.2b <- DimPlot(GEX.seur, label = F,repel = F, reduction = 'umap', group.by = "cnt", split.by = "age", 
+                     raster = F, pt.size = 0.3,
+                     ncol = 3, cols = color.cnt)
+pp.umap.2b
+``` 
+
+
+```{r  fig.width=9.4, fig.height=6.4}
+pp.umap.2c <- DimPlot(GEX.seur, label = F,  repel = F, reduction = 'umap', group.by = "new_clusters", split.by = "cnt", raster = F, pt.size = 0.3,
+        ncol = 3)
+pp.umap.2c
+``` 
+
+
+
+```{r  fig.width=8, fig.height=4.4}
+pp.umap.2d <- DimPlot(GEX.seur, label = F,repel = F, reduction = 'umap', group.by = "new_clusters", split.by = "age", 
+                     raster = F, pt.size = 0.3,
+                     ncol = 3)
+pp.umap.2d
+``` 
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("./figure1008/subset2.plot2.umap.a.big.pdf",
+       width = 9.8,height = 6.4,
+       plot = pp.umap.2a) 
+ggsave("./figure1008/subset2.plot2.umap.b.big.pdf",
+       width = 8.5,height = 4.4,
+       plot = pp.umap.2b) 
+
+ggsave("./figure1008/subset2.plot2.umap.c.big.pdf",
+       width = 9.4,height = 6.4,
+       plot = pp.umap.2c) 
+ggsave("./figure1008/subset2.plot2.umap.d.big.pdf",
+       width = 8,height = 4.4,
+       plot = pp.umap.2d) 
+```
+
+
+### plot3            
+
+
+composition              
+
+
+```{r fig.width=5.4, fig.height=4}
+pp.comp.3a <- cowplot::plot_grid(
+pheatmap::pheatmap(table(FB.info=GEX.seur$cnt,
+      clusters=GEX.seur$new_clusters),
+                   main = "Cell Count",
+                   gaps_row = c(3),
+      #gaps_col = c(12,13,14),
+                   cluster_rows = F, cluster_cols = F, display_numbers = T, number_format = "%.0f", legend = F, silent = T)$gtable,
+
+pheatmap::pheatmap(100*rowRatio(table(FB.info=GEX.seur$cnt,
+                                clusters=GEX.seur$new_clusters)),
+                   main = "Cell Ratio",
+                   gaps_row = c(3),
+      #gaps_col = c(12,13,14),
+                   cluster_rows = F, cluster_cols = F, display_numbers = T, number_format = "%.1f", legend = F, silent =T)$gtable,
+ncol = 1)
+pp.comp.3a
+```
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("./figure1008/subset2.plot3.composition.a.pdf",
+       width = 4.5,height = 4,
+       plot = pp.comp.3a)
+```
+
+
+```{r}
+stat_sort <- GEX.seur@meta.data[,c("cnt","new_clusters")]
+```
+
+
+```{r}
+stat_sort.s <- stat_sort %>%
+  group_by(cnt,new_clusters) %>%
+  summarise(count=n()) %>%
+  mutate(prop= count/sum(count)) %>%
+  ungroup()
+```
+
+```{r}
+dim(stat_sort.s)
+#stat_sort.s
+```
+
+
+```{r eval=FALSE, include=FALSE, paged.print=FALSE}
+write.csv(stat_sort.s %>% reshape2::recast(new_clusters ~ cnt, measure.var = 3), 
+          "figure1008/subset2.plot3.composition.new_clusters.count.csv")
+write.csv(stat_sort.s %>% reshape2::recast(new_clusters ~ cnt, measure.var = 4), 
+          "figure1008/subset2.plot3.composition.new_clusters.ratio.csv")
+```
+
+
+```{r fig.height=4, fig.width=10} 
+pp.comp.3b <- stat_sort.s %>% 
+  ggplot(aes(x = new_clusters, y = 100*prop, color=cnt)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  theme_classic(base_size = 15) + 
+  scale_color_manual(values = color.FBnew, name="") +
+  labs(title="Cell Composition", y="Proportion") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6)) +
+  
+  geom_point(aes(x = new_clusters, y = 100*prop, color=cnt),
+             position = position_dodge(0.75),
+             shape=16,alpha=0.75,size=1.75,
+             stroke=0.15, show.legend = F)
+pp.comp.3b
+```
+
+```{r eval=FALSE, include=FALSE}
+ggsave("./figure1008/subset2.plot3.composition.b.pdf",
+       width = 10,height = 4,
+       plot = pp.comp.3b)
+```
+
+
+### plot4     
+
+
+```{r}
+features4 <- c("Saa3","Il1a","Ccl3","Ccl4",
+               "Ccl5","Il1b","Tnf","Ccl2",
+               "Cxcl10")
+```
+
+
+```{r fig.width=11.5, fig.height=7.5}
+pp.feat.4 <- FeaturePlot(GEX.seur, 
+                         features = features4, raster = T, pt.size = 3.5,
+                         ncol = 4)
+pp.feat.4
+```
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("figure1008/subset2.plot4.features_x9.pdf",
+       width = 11.5, height = 7.5,
+       plot = pp.feat.4)
+```
+
+
+
+### plot5          
+
+
+```{r}
+final.markers <- c("Apoe","Ms4a6d","Ms4a6c","Ctss",
+                   "Ctsc","Ctsd","Ch25h","Ccl2",
+                   "Ccl3","Ccl4","Ccl5","Cxcl10",
+                   "Il1a","Il1b","Tnf","Saa3")
+final.markers
+```
+
+
+```{r}
+length(final.markers)
+sum(final.markers %in% markers.new$gene)
+```
+
+```{r}
+final.markers.sort <- (markers.new %>% group_by(cluster) %>%
+                         filter(gene %in% final.markers) %>%
+                         ungroup() %>%
+                         arrange(desc(avg_log2FC*pct.1),gene) %>%
+                         distinct(gene, .keep_all = TRUE) %>%
+                         arrange(cluster, p_val_adj))$gene
+final.markers.sort
+```
+
+
+
+```{r}
+final.markers.new <- final.markers.sort
+mapal <- colorRampPalette(RColorBrewer::brewer.pal(4,"Spectral"))(120)
+```
+
+
+```{r fig.width=5.9,fig.height=3.5}
+pp.dot.5a1 <- DotPlot(GEX.seur, features = final.markers.new, group.by = "new_clusters"
+                         ) +
+                 theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1)) + labs(y="Clusters")
+pp.dot.5a1
+```
+
+```{r fig.width=5.9,fig.height=3.5, message=FALSE}
+pp.dot.5a2 <- DotPlot(GEX.seur, features = final.markers.new, group.by = "new_clusters"
+                         ) +
+                 theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1)) + labs(y="Clusters")  +
+  scale_color_gradientn(colours  = rev(mapal))
+pp.dot.5a2
+```
+
+
+```{r fig.width=6.5,fig.height=3}
+pp.dot.5b1 <- DotPlot(GEX.seur, features = final.markers.new, group.by = "cnt"
+                         ) +
+                 theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1)) + labs(y="Conditions")
+pp.dot.5b1
+```
+
+
+
+```{r fig.height=3, fig.width=6.5, message=FALSE}
+pp.dot.5b2 <- DotPlot(GEX.seur, features = final.markers.new, group.by = "cnt"
+                         ) +
+                 theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1)) + labs(y="Conditions")  +
+  scale_color_gradientn(colours  = rev(mapal))
+pp.dot.5b2
+```
+
+
+```{r}
+levels.cluster_cnt <- as.vector(unlist(sapply(levels(GEX.seur$new_clusters),function(x){
+                         paste0(x,"_",levels(GEX.seur$cnt))
+                      })))
+levels.cluster_cnt
+```
+
+
+```{r}
+GEX.seur$cluster_cnt <- factor(paste0(as.character(GEX.seur$new_clusters),
+                                      "_",
+                                      as.character(GEX.seur$cnt)),
+                               levels = levels.cluster_cnt)
+
+```
+
+
+```{r fig.width=6.9,fig.height=3.6}
+pp.dot.5c1a <- DotPlot(subset(GEX.seur,subset= age %in% c("P30.PBS") & new_clusters %in% paste0("C",1:3)), 
+                       features = final.markers.new, group.by = "cluster_cnt"
+                         ) +
+                 theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1)) + labs(y="Clusters_Conditions")
+pp.dot.5c1a
+```
+
+```{r fig.height=3.6, fig.width=6.9, message=FALSE}
+pp.dot.5c2a <- DotPlot(subset(GEX.seur,subset= age %in% c("P30.PBS") & new_clusters %in% paste0("C",1:3)), 
+                       features = final.markers.new, group.by = "cluster_cnt"
+                         ) +
+                 theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1)) + labs(y="Clusters_Conditions") +
+  scale_color_gradientn(colours  = rev(mapal))
+pp.dot.5c2a
+```
+
+
+```{r fig.width=6.9,fig.height=6}
+pp.dot.5c1b <- DotPlot(subset(GEX.seur,subset= age %in% c("P30.LPS") & new_clusters %in% paste0("C",4:11)), 
+                       features = final.markers.new, group.by = "cluster_cnt"
+                         ) +
+                 theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1)) + labs(y="Clusters_Conditions")
+pp.dot.5c1b
+```
+
+
+```{r fig.height=6, fig.width=6.9, message=FALSE}
+pp.dot.5c2b <- DotPlot(subset(GEX.seur,subset= age %in% c("P30.LPS") & new_clusters %in% paste0("C",4:11)), 
+                       features = final.markers.new, group.by = "cluster_cnt"
+                         ) +
+                 theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1)) + labs(y="Clusters_Conditions") +
+  scale_color_gradientn(colours  = rev(mapal))
+pp.dot.5c2b
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+write.table(final.markers, "figure1008/subset2.plot5.check_markers.raw.txt", row.names = F, col.names = F, quote = F)
+write.table(final.markers.new, "figure1008/subset2.plot5.check_markers.sort.txt", row.names = F, col.names = F, quote = F)
+
+#
+ggsave("figure1008/subset2.plot5.dotplot.a1.pdf",
+       width = 5.9, height = 3.5,
+       plot = pp.dot.5a1)
+ggsave("figure1008/subset2.plot5.dotplot.a2.pdf",
+       width = 5.9, height = 3.5,
+       plot = pp.dot.5a2)
+
+#
+ggsave("figure1008/subset2.plot5.dotplot.b1.pdf",
+       width = 6.5, height = 3,
+       plot = pp.dot.5b1)
+ggsave("figure1008/subset2.plot5.dotplot.b2.pdf",
+       width = 6.5, height = 3,
+       plot = pp.dot.5b2)
+
+#
+ggsave("figure1008/subset2.plot5.dotplot.c1_a.pdf",
+       width = 6.9, height = 3.6,
+       plot = pp.dot.5c1a)
+ggsave("figure1008/subset2.plot5.dotplot.c1_b.pdf",
+       width = 6.9, height = 6,
+       plot = pp.dot.5c1b)
+
+ggsave("figure1008/subset2.plot5.dotplot.c2_a.pdf",
+       width = 6.9, height = 3.6,
+       plot = pp.dot.5c2a)
+ggsave("figure1008/subset2.plot5.dotplot.c2_b.pdf",
+       width = 6.9, height = 6,
+       plot = pp.dot.5c2b)
+
+```
+
+
+### plot6           
+
+violin using same markers in plot5                                
+
+
+```{r fig.height=16, fig.width=9, message=FALSE, warning=FALSE}
+pp.violin.6a1 <- VlnPlot(GEX.seur, features = final.markers.new, group.by = "new_clusters", 
+                      ncol = 2, pt.size = 0, raster = F) & geom_jitter(alpha=0.15, shape=16, width = 0.2, size = 0.02)
+pp.violin.6a1
+```
+
+
+```{r fig.height=16, fig.width=9, message=FALSE, warning=FALSE}
+pp.violin.6a2 <- VlnPlot(GEX.seur, features = final.markers.new, group.by = "new_clusters", 
+                      ncol = 2, pt.size = 0, raster = F) & geom_boxplot(outlier.size = 0, fill="white", width=0.3, size=0.1, alpha=0.55) &
+  stat_summary(fun=mean, geom="point", shape=18, size=2, color="black", alpha=0.55)
+pp.violin.6a2
+```
+
+```{r fig.height=20.5, fig.width=7.6, message=FALSE, warning=FALSE}
+pp.violin.6b1 <- VlnPlot(GEX.seur, features = final.markers.new, group.by = "cnt", cols = color.cnt,
+                      ncol = 2, pt.size = 0, raster = F) & geom_jitter(alpha=0.15, shape=16, width = 0.2, size = 0.02)
+pp.violin.6b1
+```
+
+```{r fig.height=20.5, fig.width=7.6, message=FALSE, warning=FALSE}
+pp.violin.6b2 <- VlnPlot(GEX.seur, features = final.markers.new, group.by = "cnt", cols = color.cnt,
+                      ncol = 2, pt.size = 0, raster = F) & geom_boxplot(outlier.size = 0, fill="white", width=0.3, size=0.1, alpha=0.55) &
+  stat_summary(fun=mean, geom="point", shape=18, size=2, color="black", alpha=0.55)
+pp.violin.6b2
+```
+
+```{r fig.height=20.5, fig.width=7.6, message=FALSE, warning=FALSE}
+pp.violin.6b3 <- VlnPlot(GEX.seur, features = final.markers.new, group.by = "cnt", cols = color.cnt,
+                      ncol = 2, pt.size = 0, raster = F) & geom_boxplot(outlier.size = 0, fill="white", width=0.3, size=0.1, alpha=0.55) &
+  stat_summary(fun=mean, geom="point", shape=18, size=2, color="black", alpha=0.55) & ylim(c(0,7.2)) &
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("P30.LPS.CTR","P30.LPS.MIG"),
+                                                  c("P30.LPS.MIG","P30.LPS.TDT"),
+                                                  c("P30.LPS.CTR","P30.LPS.TDT"),
+                                                  c("P30.PBS.CTR","P30.PBS.MIG"),
+                                                  c("P30.PBS.MIG","P30.PBS.TDT"),
+                                                  c("P30.PBS.CTR","P30.PBS.TDT"),
+                                                  c("P30.LPS.TDT","P30.PBS.TDT")),
+                               label.y = c(6.3,6.8,7.3,6.3,6.8,7.3,7.8)-1,
+                               size=1.75
+                               )
+pp.violin.6b3
+```
+
+
+```{r fig.height=23.5, fig.width=7.5, message=FALSE, warning=FALSE}
+pp.violin.6c1a <- VlnPlot(subset(GEX.seur,subset= age %in% c("P30.PBS") & new_clusters %in% paste0("C",1:3)), 
+                          features = final.markers.new, group.by = "cluster_cnt", cols = rep(color.FBnew[1:3],4),
+                      ncol = 2, pt.size = 0, raster = F) & geom_jitter(alpha=0.15, shape=16, width = 0.2, size = 0.02)
+pp.violin.6c1a
+```
+
+
+
+
+```{r fig.height=23.5, fig.width=12.5, message=FALSE, warning=FALSE}
+pp.violin.6c1b <- VlnPlot(subset(GEX.seur,subset= age %in% c("P30.LPS") & new_clusters %in% paste0("C",4:11)), 
+                          features = final.markers.new, group.by = "cluster_cnt", cols = rep(color.cnt[4:6],8),
+                      ncol = 2, pt.size = 0, raster = F) & geom_jitter(alpha=0.15, shape=16, width = 0.2, size = 0.02)
+pp.violin.6c1b
+```
+
+
+```{r fig.height=23.5, fig.width=7.5, message=FALSE, warning=FALSE}
+pp.violin.6c2a <- VlnPlot(subset(GEX.seur,subset= age %in% c("P30.PBS") & new_clusters %in% paste0("C",1:3)), 
+                          features = final.markers.new, group.by = "cluster_cnt", cols = rep(color.FBnew[1:3],4),
+                      ncol = 2, pt.size = 0, raster = F) & geom_boxplot(outlier.size = 0, fill="white", width=0.3, size=0.1, alpha=0.55) &
+  stat_summary(fun=mean, geom="point", shape=18, size=2, color="black", alpha=0.55)
+pp.violin.6c2a
+```
+
+
+
+```{r fig.height=23.5, fig.width=12.5, message=FALSE, warning=FALSE}
+pp.violin.6c2b <- VlnPlot(subset(GEX.seur,subset= age %in% c("P30.LPS") & new_clusters %in% paste0("C",4:11)), 
+                          features = final.markers.new, group.by = "cluster_cnt", cols = rep(color.cnt[4:6],8),
+                      ncol = 2, pt.size = 0, raster = F) & geom_boxplot(outlier.size = 0, fill="white", width=0.3, size=0.1, alpha=0.55) &
+  stat_summary(fun=mean, geom="point", shape=18, size=2, color="black", alpha=0.55)
+pp.violin.6c2b
+```
+
+
+```{r}
+contrast.a <- list(c("P30.PBS.CTR","P30.PBS.MIG"),
+                   c("P30.PBS.MIG","P30.PBS.TDT"),
+                   c("P30.PBS.CTR","P30.PBS.TDT"))
+
+plot.contrast.a <- list()
+
+for(XXX in paste0("C",1:3)){
+  
+  
+  plot.contrast.a <- c(plot.contrast.a,
+                       lapply(contrast.a, function(x){
+                         paste0(XXX,
+                                "_",
+                                x)
+                       }))
+}
+
+plot.labely.a <- rep(c(6.3,6.8,7.3),3)
+#
+length(plot.contrast.a)
+plot.contrast.a[1:6]
+```
+
+
+```{r}
+contrast.b <- list(c("P30.LPS.CTR","P30.LPS.MIG"),
+                   c("P30.LPS.MIG","P30.LPS.TDT"),
+                   c("P30.LPS.CTR","P30.LPS.TDT"))
+
+plot.contrast.b <- list()
+
+for(XXX in paste0("C",4:11)){
+  
+  
+  plot.contrast.b <- c(plot.contrast.b,
+                       lapply(contrast.b, function(x){
+                         paste0(XXX,
+                                "_",
+                                x)
+                       }))
+}
+
+plot.labely.b <- rep(c(6.3,6.8,7.3),8)
+#
+length(plot.contrast.b)
+plot.contrast.b[1:6]
+```
+
+
+```{r fig.height=23.5, fig.width=7.5, message=FALSE, warning=FALSE}
+pp.violin.6c3a <- VlnPlot(subset(GEX.seur,subset= age %in% c("P30.PBS") & new_clusters %in% paste0("C",1:3)), 
+                          features = final.markers.new, group.by = "cluster_cnt", cols = rep(color.FBnew[1:3],4),
+                      ncol = 2, pt.size = 0, raster = F) & geom_boxplot(outlier.size = 0, fill="white", width=0.3, size=0.1, alpha=0.55) &
+  stat_summary(fun=mean, geom="point", shape=18, size=2, color="black", alpha=0.55)& ylim(c(0,6.8)) &
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = plot.contrast.a,
+                               label.y = plot.labely.a-1,
+                               size=1.5
+                               ) 
+pp.violin.6c3a
+```
+
+
+```{r fig.height=23.5, fig.width=12.5, message=FALSE, warning=FALSE}
+pp.violin.6c3b <- VlnPlot(subset(GEX.seur,subset= age %in% c("P30.LPS") & new_clusters %in% paste0("C",4:11)), 
+                          features = final.markers.new, group.by = "cluster_cnt", cols = rep(color.cnt[4:6],8),
+                      ncol = 2, pt.size = 0, raster = F) & geom_boxplot(outlier.size = 0, fill="white", width=0.3, size=0.1, alpha=0.55) &
+  stat_summary(fun=mean, geom="point", shape=18, size=2, color="black", alpha=0.55)& ylim(c(0,6.8)) &
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = plot.contrast.b,
+                               label.y = plot.labely.b-1,
+                               size=1.75
+                               )
+pp.violin.6c3b
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#
+ggsave("figure1008/subset2.plot6.violin.a.pdf",
+       width = 9, height = 16,
+       plot = pp.violin.6a2)
+
+#
+ggsave("figure1008/subset2.plot6.violin.b1.pdf",
+       width = 7.6, height = 20.5,
+       plot = pp.violin.6b2)
+ggsave("figure1008/subset2.plot6.violin.b2.pdf",
+       width = 7.6, height = 24.5,
+       plot = pp.violin.6b3)
+
+#
+ggsave("figure1008/subset2.plot6.violin.c1a.pdf",
+       width = 7.5, height = 23.5,
+       plot = pp.violin.6c2a)
+ggsave("figure1008/subset2.plot6.violin.c1b.pdf",
+       width = 12, height = 23.5,
+       plot = pp.violin.6c2b)
+
+ggsave("figure1008/subset2.plot6.violin.c2a.pdf",
+       width = 7.5, height = 24.5,
+       plot = pp.violin.6c3a)
+ggsave("figure1008/subset2.plot6.violin.c2b.pdf",
+       width = 12, height = 24.5,
+       plot = pp.violin.6c3b)
+
+```
+
+
+
+### plot7              
+
+
+count DEG number, using different cutoffs         
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+cut.padj = 0.05
+cut.log2FC = 0.1   
+  
+cut.pct1 = 0.05
+
+stat.a1 <- df.DEGs.a %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(contrast,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame()
+stat.a1
+```
+
+```{r}
+#df.DEGs.a
+```
+
+
+```{r message=FALSE, warning=FALSE}
+pp.stat.DEG[["a1"]] <- df.DEGs.a %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(contrast,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame() %>%
+  ggplot(aes(x=contrast, y=up.DEGs, color = cluster)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  geom_text(aes(label = up.DEGs),vjust=-0.21, show.legend = F, position = position_dodge(0.75) ) +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = color.cnt[c(4:6,1:3)], name="") +
+  labs(title=paste0("up.DEGs stat, pct.1>0.05, padj<",cut.padj,", |log2FC|>",cut.log2FC), y = "Number of DEGs") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6),
+        title =element_text(size=12, face='bold'))
+pp.stat.DEG[["a1"]]
+```
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+cut.padj = 0.05
+cut.log2FC = 0.2   
+  
+cut.pct1 = 0.05
+
+stat.a2 <- df.DEGs.a %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(contrast,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame()
+stat.a2
+```
+
+```{r message=FALSE, warning=FALSE}
+pp.stat.DEG[["a2"]] <- df.DEGs.a %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(contrast,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame() %>%
+  ggplot(aes(x=contrast, y=up.DEGs, color = cluster)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  geom_text(aes(label = up.DEGs),vjust=-0.21, show.legend = F, position = position_dodge(0.75) ) +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = color.cnt[c(4:6,1:3)], name="") +
+  labs(title=paste0("up.DEGs stat, pct.1>0.05, padj<",cut.padj,", |log2FC|>",cut.log2FC), y = "Number of DEGs") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6),
+        title =element_text(size=12, face='bold'))
+pp.stat.DEG[["a2"]]
+```
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+cut.padj = 0.05
+cut.log2FC = 0.3   
+  
+cut.pct1 = 0.05
+
+stat.a3 <- df.DEGs.a %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(contrast,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame()
+stat.a3
+```
+
+```{r message=FALSE, warning=FALSE}
+pp.stat.DEG[["a3"]] <- df.DEGs.a %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(contrast,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame() %>%
+  ggplot(aes(x=contrast, y=up.DEGs, color = cluster)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  geom_text(aes(label = up.DEGs),vjust=-0.21, show.legend = F, position = position_dodge(0.75) ) +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = color.cnt[c(4:6,1:3)], name="") +
+  labs(title=paste0("up.DEGs stat, pct.1>0.05, padj<",cut.padj,", |log2FC|>",cut.log2FC), y = "Number of DEGs") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6),
+        title =element_text(size=12, face='bold'))
+pp.stat.DEG[["a3"]]
+```
+
+
+
+```{r eval=FALSE, include=FALSE}
+#
+ggsave("figure1008/subset2.plot7.DEG_stat.a1.pdf",
+       width = 6, height = 4.8,
+       plot = pp.stat.DEG[["a1"]])
+write.csv(stat.a1, "figure1008/subset2.plot7.DEG_stat.a1.csv")
+
+ggsave("figure1008/subset2.plot7.DEG_stat.a2.pdf",
+       width = 6, height = 4.8,
+       plot = pp.stat.DEG[["a2"]])
+write.csv(stat.a2, "figure1008/subset2.plot7.DEG_stat.a2.csv")
+
+ggsave("figure1008/subset2.plot7.DEG_stat.a3.pdf",
+       width = 6, height = 4.8,
+       plot = pp.stat.DEG[["a3"]])
+write.csv(stat.a3, "figure1008/subset2.plot7.DEG_stat.a3.csv")
+```
+
+
+#### DEG list           
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+cut.padj = 0.05
+cut.log2FC = 0.1   
+  
+cut.pct1 = 0.05
+
+stat.a1.df <- df.DEGs.a %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(contrast,cluster) %>%
+  #summarise(up.DEGs = n()) %>% 
+  as.data.frame()
+dim(stat.a1.df)
+stat.a1.df[1:6,]
+```
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+cut.padj = 0.05
+cut.log2FC = 0.2   
+  
+cut.pct1 = 0.05
+
+stat.a2.df <- df.DEGs.a %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(contrast,cluster) %>%
+  #summarise(up.DEGs = n()) %>% 
+  as.data.frame()
+dim(stat.a2.df)
+stat.a2.df[1:6,]
+```
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+cut.padj = 0.05
+cut.log2FC = 0.3   
+  
+cut.pct1 = 0.05
+
+stat.a3.df <- df.DEGs.a %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(contrast,cluster) %>%
+  #summarise(up.DEGs = n()) %>% 
+  as.data.frame()
+dim(stat.a3.df)
+stat.a3.df[1:6,]
+```
+
+```{r}
+#
+stat.a1.list <- list(P30.LPS.TDTvsCTR.CTRup = (stat.a1.df %>% filter(contrast == "P30.LPS.TDTvsCTR" & cluster == "P30.LPS.CTR"))$gene,
+                     P30.LPS.TDTvsCTR.TDTup = (stat.a1.df %>% filter(contrast == "P30.LPS.TDTvsCTR" & cluster == "P30.LPS.TDT"))$gene,
+                     P30.LPS.TDTvsMIG.MIGup = (stat.a1.df %>% filter(contrast == "P30.LPS.TDTvsMIG" & cluster == "P30.LPS.MIG"))$gene,
+                     P30.LPS.TDTvsMIG.TDTup = (stat.a1.df %>% filter(contrast == "P30.LPS.TDTvsMIG" & cluster == "P30.LPS.TDT"))$gene,
+                     P30.PBS.TDTvsCTR.CTRup = (stat.a1.df %>% filter(contrast == "P30.PBS.TDTvsCTR" & cluster == "P30.PBS.CTR"))$gene,
+                     P30.PBS.TDTvsCTR.TDTup = (stat.a1.df %>% filter(contrast == "P30.PBS.TDTvsCTR" & cluster == "P30.PBS.TDT"))$gene,
+                     P30.PBS.TDTvsMIG.MIGup = (stat.a1.df %>% filter(contrast == "P30.PBS.TDTvsMIG" & cluster == "P30.PBS.MIG"))$gene,
+                     P30.PBS.TDTvsMIG.TDTup = (stat.a1.df %>% filter(contrast == "P30.PBS.TDTvsMIG" & cluster == "P30.PBS.TDT"))$gene)
+stat.a2.list <- list(P30.LPS.TDTvsCTR.CTRup = (stat.a2.df %>% filter(contrast == "P30.LPS.TDTvsCTR" & cluster == "P30.LPS.CTR"))$gene,
+                     P30.LPS.TDTvsCTR.TDTup = (stat.a2.df %>% filter(contrast == "P30.LPS.TDTvsCTR" & cluster == "P30.LPS.TDT"))$gene,
+                     P30.LPS.TDTvsMIG.MIGup = (stat.a2.df %>% filter(contrast == "P30.LPS.TDTvsMIG" & cluster == "P30.LPS.MIG"))$gene,
+                     P30.LPS.TDTvsMIG.TDTup = (stat.a2.df %>% filter(contrast == "P30.LPS.TDTvsMIG" & cluster == "P30.LPS.TDT"))$gene,
+                     P30.PBS.TDTvsCTR.CTRup = (stat.a2.df %>% filter(contrast == "P30.PBS.TDTvsCTR" & cluster == "P30.PBS.CTR"))$gene,
+                     P30.PBS.TDTvsCTR.TDTup = (stat.a2.df %>% filter(contrast == "P30.PBS.TDTvsCTR" & cluster == "P30.PBS.TDT"))$gene,
+                     P30.PBS.TDTvsMIG.MIGup = (stat.a2.df %>% filter(contrast == "P30.PBS.TDTvsMIG" & cluster == "P30.PBS.MIG"))$gene,
+                     P30.PBS.TDTvsMIG.TDTup = (stat.a2.df %>% filter(contrast == "P30.PBS.TDTvsMIG" & cluster == "P30.PBS.TDT"))$gene)
+stat.a3.list <- list(P30.LPS.TDTvsCTR.CTRup = (stat.a3.df %>% filter(contrast == "P30.LPS.TDTvsCTR" & cluster == "P30.LPS.CTR"))$gene,
+                     P30.LPS.TDTvsCTR.TDTup = (stat.a3.df %>% filter(contrast == "P30.LPS.TDTvsCTR" & cluster == "P30.LPS.TDT"))$gene,
+                     P30.LPS.TDTvsMIG.MIGup = (stat.a3.df %>% filter(contrast == "P30.LPS.TDTvsMIG" & cluster == "P30.LPS.MIG"))$gene,
+                     P30.LPS.TDTvsMIG.TDTup = (stat.a3.df %>% filter(contrast == "P30.LPS.TDTvsMIG" & cluster == "P30.LPS.TDT"))$gene,
+                     P30.PBS.TDTvsCTR.CTRup = (stat.a3.df %>% filter(contrast == "P30.PBS.TDTvsCTR" & cluster == "P30.PBS.CTR"))$gene,
+                     P30.PBS.TDTvsCTR.TDTup = (stat.a3.df %>% filter(contrast == "P30.PBS.TDTvsCTR" & cluster == "P30.PBS.TDT"))$gene,
+                     P30.PBS.TDTvsMIG.MIGup = (stat.a3.df %>% filter(contrast == "P30.PBS.TDTvsMIG" & cluster == "P30.PBS.MIG"))$gene,
+                     P30.PBS.TDTvsMIG.TDTup = (stat.a3.df %>% filter(contrast == "P30.PBS.TDTvsMIG" & cluster == "P30.PBS.TDT"))$gene)
+```
+
+
+```{r}
+lapply(stat.a1.list,length)
+```
+
+```{r}
+lapply(stat.a2.list,length)
+```
+
+```{r}
+lapply(stat.a3.list,length)
+```
+
+
+
+```{r eval=FALSE, include=FALSE}
+#
+for(nn in names(stat.a1.list)){
+  write.table(stat.a1.list[[nn]],paste0("figure1008/subset2.plot7.DEGlist/a1.log2FC_0.1.",nn,".txt"),row.names = F, col.names = F, quote = F)
+}
+
+#
+for(nn in names(stat.a2.list)){
+  write.table(stat.a2.list[[nn]],paste0("figure1008/subset2.plot7.DEGlist/a2.log2FC_0.2.",nn,".txt"),row.names = F, col.names = F, quote = F)
+}
+
+#
+for(nn in names(stat.a3.list)){
+  write.table(stat.a3.list[[nn]],paste0("figure1008/subset2.plot7.DEGlist/a3.log2FC_0.3.",nn,".txt"),row.names = F, col.names = F, quote = F)
+}
+
+```
+
+
+##### load subset1 DEGs.a list 
+
+
+```{r}
+#
+stat.s1.list <- list(P06.TDTvsCTR.CTRup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a1.log2FC_0.1.P06.TDTvsCTR.CTRup.txt"))),
+                     P06.TDTvsCTR.TDTup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a1.log2FC_0.1.P06.TDTvsCTR.TDTup.txt"))),
+                     P06.TDTvsMIG.MIGup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a1.log2FC_0.1.P06.TDTvsMIG.MIGup.txt"))),
+                     P06.TDTvsMIG.TDTup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a1.log2FC_0.1.P06.TDTvsMIG.TDTup.txt"))),
+                     P30.PBS.TDTvsCTR.CTRup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a1.log2FC_0.1.P30.PBS.TDTvsCTR.CTRup.txt"))),
+                     P30.PBS.TDTvsCTR.TDTup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a1.log2FC_0.1.P30.PBS.TDTvsCTR.TDTup.txt"))),
+                     P30.PBS.TDTvsMIG.MIGup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a1.log2FC_0.1.P30.PBS.TDTvsMIG.MIGup.txt"))),
+                     P30.PBS.TDTvsMIG.TDTup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a1.log2FC_0.1.P30.PBS.TDTvsMIG.TDTup.txt"))))
+
+#
+stat.s2.list <- list(P06.TDTvsCTR.CTRup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a2.log2FC_0.2.P06.TDTvsCTR.CTRup.txt"))),
+                     P06.TDTvsCTR.TDTup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a2.log2FC_0.2.P06.TDTvsCTR.TDTup.txt"))),
+                     P06.TDTvsMIG.MIGup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a2.log2FC_0.2.P06.TDTvsMIG.MIGup.txt"))),
+                     P06.TDTvsMIG.TDTup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a2.log2FC_0.2.P06.TDTvsMIG.TDTup.txt"))),
+                     P30.PBS.TDTvsCTR.CTRup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a2.log2FC_0.2.P30.PBS.TDTvsCTR.CTRup.txt"))),
+                     P30.PBS.TDTvsCTR.TDTup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a2.log2FC_0.2.P30.PBS.TDTvsCTR.TDTup.txt"))),
+                     P30.PBS.TDTvsMIG.MIGup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a2.log2FC_0.2.P30.PBS.TDTvsMIG.MIGup.txt"))),
+                     P30.PBS.TDTvsMIG.TDTup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a2.log2FC_0.2.P30.PBS.TDTvsMIG.TDTup.txt"))))
+
+#
+stat.s3.list <- list(P06.TDTvsCTR.CTRup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a3.log2FC_0.3.P06.TDTvsCTR.CTRup.txt"))),
+                     P06.TDTvsCTR.TDTup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a3.log2FC_0.3.P06.TDTvsCTR.TDTup.txt"))),
+                     P06.TDTvsMIG.MIGup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a3.log2FC_0.3.P06.TDTvsMIG.MIGup.txt"))),
+                     P06.TDTvsMIG.TDTup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a3.log2FC_0.3.P06.TDTvsMIG.TDTup.txt"))),
+                     P30.PBS.TDTvsCTR.CTRup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a3.log2FC_0.3.P30.PBS.TDTvsCTR.CTRup.txt"))),
+                     P30.PBS.TDTvsCTR.TDTup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a3.log2FC_0.3.P30.PBS.TDTvsCTR.TDTup.txt"))),
+                     P30.PBS.TDTvsMIG.MIGup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a3.log2FC_0.3.P30.PBS.TDTvsMIG.MIGup.txt"))),
+                     P30.PBS.TDTvsMIG.TDTup = as.vector(unlist(read.table("../subset1/figure1008/subset1.plot7.DEGlist/a3.log2FC_0.3.P30.PBS.TDTvsMIG.TDTup.txt"))))
+```
+
+
+
+```{r}
+lapply(stat.s1.list,length)
+```
+
+```{r}
+lapply(stat.s2.list,length)
+```
+
+```{r}
+lapply(stat.s3.list,length)
+```
+
+
+
+### plot8              
+
+DEG volcano, set same x/y-axis              
+
+
+
+```{r fig.width=12, fig.height=6}
+pp.DEGs.a$P30.LPS.TDTvsCTR <- DEGs.a.combine$P30.LPS.TDTvsCTR %>%
+  mutate(label=ifelse(((p_val_adj < 1e-8 & avg_log2FC<0) | (p_val_adj < 1e-8 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        !grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"CTR",ifelse(p_val_adj<0.05 & avg_log2FC>0,"TDT","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("CTR"="Skyblue",
+                               "TDT"="pink",
+                               "None"="grey")) +
+  theme_classic() + labs(title="P30.LPS, TDT vs CTR") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")  + xlim(c(-1.5,3)) + ylim(c(0,60))
+pp.DEGs.a$P30.LPS.TDTvsCTR
+```
+
+
+```{r fig.width=12, fig.height=6}
+pp.DEGs.a$P30.LPS.TDTvsMIG <- DEGs.a.combine$P30.LPS.TDTvsMIG %>%
+  mutate(label=ifelse(((p_val_adj < 1e-8 & avg_log2FC<0) | (p_val_adj < 1e-8 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        !grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"MIG",ifelse(p_val_adj<0.05 & avg_log2FC>0,"TDT","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("MIG"="Skyblue",
+                               "TDT"="pink",
+                               "None"="grey")) +
+  theme_classic() + labs(title="P30.LPS, TDT vs MIG") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted") + xlim(c(-1.5,3)) + ylim(c(0,60))
+pp.DEGs.a$P30.LPS.TDTvsMIG
+```
+
+
+```{r fig.width=12, fig.height=6}
+pp.DEGs.a$P30.PBS.TDTvsCTR <- DEGs.a.combine$P30.PBS.TDTvsCTR %>%
+  mutate(label=ifelse(((p_val_adj < 1e-3 & avg_log2FC<0) | (p_val_adj < 1e-3 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        !grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"CTR",ifelse(p_val_adj<0.05 & avg_log2FC>0,"TDT","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("CTR"="Skyblue",
+                               "TDT"="pink",
+                               "None"="grey")) +
+  theme_classic() + labs(title="P30.PBS, TDT vs CTR") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")  + xlim(c(-1.5,3)) + ylim(c(0,60))
+pp.DEGs.a$P30.PBS.TDTvsCTR
+```
+
+
+```{r fig.width=12, fig.height=6}
+pp.DEGs.a$P30.PBS.TDTvsMIG <- DEGs.a.combine$P30.PBS.TDTvsMIG %>%
+  mutate(label=ifelse(((p_val_adj < 1e-3 & avg_log2FC<0) | (p_val_adj < 1e-3 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        !grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"MIG",ifelse(p_val_adj<0.05 & avg_log2FC>0,"TDT","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("MIG"="Skyblue",
+                               "TDT"="pink",
+                               "None"="grey")) +
+  theme_classic() + labs(title="P30.PBS, TDT vs MIG") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")  + xlim(c(-1.5,3)) + ylim(c(0,60))
+pp.DEGs.a$P30.PBS.TDTvsMIG
+```
+
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("figure1008/subset2.plot8.DEG_volcano.a1.pdf",
+       width = 12, height = 6,
+       plot = pp.DEGs.a$P30.LPS.TDTvsCTR)
+ggsave("figure1008/subset2.plot8.DEG_volcano.a2.pdf",
+       width = 12, height = 6,
+       plot = pp.DEGs.a$P30.LPS.TDTvsMIG)
+ggsave("figure1008/subset2.plot8.DEG_volcano.b1.pdf",
+       width = 12, height = 6,
+       plot = pp.DEGs.a$P30.PBS.TDTvsCTR)
+ggsave("figure1008/subset2.plot8.DEG_volcano.b2.pdf",
+       width = 12, height = 6,
+       plot = pp.DEGs.a$P30.PBS.TDTvsMIG)
+```
+
+
+
+### plot9             
+
+
+'LPS_Tdt vs LPS_MIG', how many DEGs overlap with 'P06 Tdt vs P06 CTRL' and 'P06 Tdt vs MIG' ?             
+
+
+```{r}
+library(UpSetR)
+```
+
+
+```{r fig.width=10, fig.height=6}
+upset(fromList(c(stat.a1.list[3:4],
+                 stat.s1.list[1:4])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)
+  
+grid::grid.text("pct.a>0.05, padj<0.05, |log2FC|>0.1",x = 0.75, y=0.95, gp=grid::gpar(fontsize=20))
+```
+
+```{r fig.width=10, fig.height=6}
+upset(fromList(c(stat.a1.list[3:4],
+                 stat.s1.list[1:2])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)
+  
+grid::grid.text("pct.a>0.05, padj<0.05, |log2FC|>0.1",x = 0.75, y=0.95, gp=grid::gpar(fontsize=20))
+```
+
+```{r fig.width=10, fig.height=6}
+upset(fromList(c(stat.a1.list[3:4],
+                 stat.s1.list[3:4])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)
+  
+grid::grid.text("pct.a>0.05, padj<0.05, |log2FC|>0.1",x = 0.75, y=0.95, gp=grid::gpar(fontsize=20))
+```
+
+
+```{r eval=FALSE, include=FALSE}
+# a1
+pdf("figure1008/subset2.plot9.DEG_overlap.a1_log2FC0.1.s1.pdf",
+    width = 10, height = 6)
+upset(fromList(c(stat.a1.list[3:4],
+                 stat.s1.list[1:4])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)
+  
+grid::grid.text("pct.a>0.05, padj<0.05, |log2FC|>0.1",x = 0.78, y=0.95, gp=grid::gpar(fontsize=15))
+dev.off()
+
+pdf("figure1008/subset2.plot9.DEG_overlap.a1_log2FC0.1.s2.pdf",
+    width = 10, height = 6)
+upset(fromList(c(stat.a1.list[3:4],
+                 stat.s1.list[1:2])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)
+  
+grid::grid.text("pct.a>0.05, padj<0.05, |log2FC|>0.1",x = 0.78, y=0.95, gp=grid::gpar(fontsize=15))
+dev.off()
+
+pdf("figure1008/subset2.plot9.DEG_overlap.a1_log2FC0.1.s3.pdf",
+    width = 10, height = 6)
+upset(fromList(c(stat.a1.list[3:4],
+                 stat.s1.list[3:4])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)
+  
+grid::grid.text("pct.a>0.05, padj<0.05, |log2FC|>0.1",x = 0.78, y=0.95, gp=grid::gpar(fontsize=15))
+dev.off()
+
+# a2
+pdf("figure1008/subset2.plot9.DEG_overlap.a2_log2FC0.2.s1.pdf",
+    width = 10, height = 6)
+upset(fromList(c(stat.a2.list[3:4],
+                 stat.s2.list[1:4])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)
+  
+grid::grid.text("pct.a>0.05, padj<0.05, |log2FC|>0.2",x = 0.78, y=0.95, gp=grid::gpar(fontsize=15))
+dev.off()
+
+pdf("figure1008/subset2.plot9.DEG_overlap.a2_log2FC0.2.s2.pdf",
+    width = 10, height = 6)
+upset(fromList(c(stat.a2.list[3:4],
+                 stat.s2.list[1:2])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)
+  
+grid::grid.text("pct.a>0.05, padj<0.05, |log2FC|>0.2",x = 0.78, y=0.95, gp=grid::gpar(fontsize=15))
+dev.off()
+
+pdf("figure1008/subset2.plot9.DEG_overlap.a2_log2FC0.2.s3.pdf",
+    width = 10, height = 6)
+upset(fromList(c(stat.a2.list[3:4],
+                 stat.s2.list[3:4])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)
+  
+grid::grid.text("pct.a>0.05, padj<0.05, |log2FC|>0.2",x = 0.78, y=0.95, gp=grid::gpar(fontsize=15))
+dev.off()
+
+# a3
+pdf("figure1008/subset2.plot9.DEG_overlap.a3_log2FC0.1.s1.pdf",
+    width = 10, height = 6)
+upset(fromList(c(stat.a3.list[3:4],
+                 stat.s3.list[1:4])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)
+  
+grid::grid.text("pct.a>0.05, padj<0.05, |log2FC|>0.3",x = 0.78, y=0.95, gp=grid::gpar(fontsize=15))
+dev.off()
+
+pdf("figure1008/subset2.plot9.DEG_overlap.a3_log2FC0.1.s2.pdf",
+    width = 10, height = 6)
+upset(fromList(c(stat.a3.list[3:4],
+                 stat.s3.list[1:2])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)
+  
+grid::grid.text("pct.a>0.05, padj<0.05, |log2FC|>0.3",x = 0.78, y=0.95, gp=grid::gpar(fontsize=15))
+dev.off()
+
+pdf("figure1008/subset2.plot9.DEG_overlap.a3_log2FC0.1.s3.pdf",
+    width = 10, height = 6)
+upset(fromList(c(stat.a3.list[3:4],
+                 stat.s3.list[3:4])),
+      order.by = 'freq', nsets = 6, point.size=3.5, line.size =1, text.scale = 2)
+  
+grid::grid.text("pct.a>0.05, padj<0.05, |log2FC|>0.3",x = 0.78, y=0.95, gp=grid::gpar(fontsize=15))
+dev.off()
+
+```
+
+##### overlap list 
+
+```{r eval=FALSE, include=FALSE}
+#
+write.table(intersect(stat.a1.list$P30.LPS.TDTvsMIG.TDTup, stat.s1.list$P06.TDTvsCTR.TDTup),"figure1008/subset2.plot9.DEGoverlap/a1.P30.LPS.TDTvMIG.TDT_P06.TDTvCTR.TDT.txt", 
+            row.names = F, col.names = F,quote = F)
+write.table(intersect(stat.a1.list$P30.LPS.TDTvsMIG.TDTup, stat.s1.list$P06.TDTvsMIG.TDTup),"figure1008/subset2.plot9.DEGoverlap/a1.P30.LPS.TDTvMIG.TDT_P06.TDTvMIG.TDT.txt", 
+            row.names = F, col.names = F,quote = F)
+
+#
+write.table(intersect(stat.a2.list$P30.LPS.TDTvsMIG.TDTup, stat.s2.list$P06.TDTvsCTR.TDTup),"figure1008/subset2.plot9.DEGoverlap/a2.P30.LPS.TDTvMIG.TDT_P06.TDTvCTR.TDT.txt", 
+            row.names = F, col.names = F,quote = F)
+write.table(intersect(stat.a2.list$P30.LPS.TDTvsMIG.TDTup, stat.s2.list$P06.TDTvsMIG.TDTup),"figure1008/subset2.plot9.DEGoverlap/a2.P30.LPS.TDTvMIG.TDT_P06.TDTvMIG.TDT.txt", 
+            row.names = F, col.names = F,quote = F)
+
+#
+write.table(intersect(stat.a3.list$P30.LPS.TDTvsMIG.TDTup, stat.s3.list$P06.TDTvsCTR.TDTup),"figure1008/subset2.plot9.DEGoverlap/a3.P30.LPS.TDTvMIG.TDT_P06.TDTvCTR.TDT.txt", 
+            row.names = F, col.names = F,quote = F)
+write.table(intersect(stat.a3.list$P30.LPS.TDTvsMIG.TDTup, stat.s3.list$P06.TDTvsMIG.TDTup),"figure1008/subset2.plot9.DEGoverlap/a3.P30.LPS.TDTvMIG.TDT_P06.TDTvMIG.TDT.txt", 
+            row.names = F, col.names = F,quote = F)
+
+```
+
+
+
+
+### plot10            
+
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+cut.padj = 0.05
+cut.log2FC = 0.3   
+  
+cut.pct1 = 0.05
+
+df.DEGs.b %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(condition,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame()
+  
+```
+
+```{r message=FALSE, warning=FALSE}
+pp.stat.DEG[["b"]] <- df.DEGs.b %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(condition,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame() %>%
+  ggplot(aes(x=condition, y=up.DEGs, color = cluster)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  geom_text(aes(label = up.DEGs),vjust=-0.21, show.legend = F, position = position_dodge(0.75) ) +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = c("skyblue","pink"), name="") +
+  labs(title=paste0("up.DEGs stat, pct.1>",cut.pct1,", padj<",cut.padj,", |log2FC|>",cut.log2FC), y = "Number of DEGs") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6),
+        title =element_text(size=12, face='bold'))
+pp.stat.DEG[["b"]]
+```
+
+
+```{r paged.print=FALSE}
+sig.LPS <- df.DEGs.b %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>% 
+  filter(condition == "P30.CTR" & cluster=="P30.LPS")
+dim(sig.LPS)
+sig.LPS[1:6,]
+```
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("figure1008/subset2.plot10.P30.LPSvsPBS.DEG_stat.pdf",
+       width = 6,height = 4.8,
+       plot = pp.stat.DEG[["b"]])
+
+write.csv(sig.LPS,"figure1008/subset2.plot10.P30.LPSvsPBS.LPS_signatures.csv")
+
+```
+
+
+
+```{r}
+GEX.seur <- add_geneset_score(GEX.seur, sig.LPS$gene, "LPS.sig_score")
+```
+
+
+```{r fig.width=3.2, fig.height=2.5}
+pp.feat.10a1 <- FeaturePlot(GEX.seur,features = c("LPS.sig_score"), ncol = 1,
+                           raster = T, pt.size = 3.5#,keep.scale = "all"
+                           )
+pp.feat.10a1
+```
+
+```{r fig.width=3.2, fig.height=2.5, message=FALSE, warning=FALSE}
+mapal <- colorRampPalette(RColorBrewer::brewer.pal(4,"Spectral"))(120)
+pp.feat.10a2 <- FeaturePlot(GEX.seur,features = c("LPS.sig_score"), ncol = 1,
+                           raster = T, pt.size = 3.5#,keep.scale = "all"
+                           ) & scale_color_gradientn(colors = rev(mapal))
+pp.feat.10a2
+```
+
+
+```{r fig.height=3, fig.width=4, message=FALSE, warning=FALSE}
+pp.feat.10b1 <- VlnPlot(GEX.seur, features = c("LPS.sig_score"), 
+                      group.by = "cnt", cols = color.cnt,
+                      ncol = 1, pt.size = 0, raster = F) + geom_jitter(alpha=0.15, shape=16, width = 0.2, size = 0.02) + NoLegend()
+pp.feat.10b1
+```
+
+
+```{r fig.height=3, fig.width=4, message=FALSE, warning=FALSE}
+pp.feat.10b2 <- VlnPlot(GEX.seur, features = c("LPS.sig_score"), 
+                      same.y.lims = T,
+                      group.by = "cnt", cols = color.cnt,
+                      ncol = 1, pt.size = 0, raster = F) + NoLegend() & 
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+  stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) &  ylim(c(0,1.1)) &
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("P30.LPS.CTR","P30.LPS.MIG"),
+                                                  c("P30.LPS.MIG","P30.LPS.TDT"),
+                                                  c("P30.LPS.CTR","P30.LPS.TDT"),
+                                                  c("P30.PBS.CTR","P30.PBS.MIG"),
+                                                  c("P30.PBS.MIG","P30.PBS.TDT"),
+                                                  c("P30.PBS.CTR","P30.PBS.TDT"),
+                                                  c("P30.LPS.CTR","P30.PBS.CTR")),
+                               label.y = c(0.73,0.78,0.87,0.55,0.65,0.75,0.93),
+                               size=2.35
+                               )
+pp.feat.10b2
+```
+
+
+```{r fig.height=3, fig.width=6, message=FALSE, warning=FALSE}
+pp.feat.10c1 <- VlnPlot(GEX.seur, features = c("LPS.sig_score"), 
+                      group.by = "new_clusters", #cols = color.cnt,
+                      ncol = 1, pt.size = 0, raster = F) + NoLegend()& geom_jitter(alpha=0.15, shape=16, width = 0.2, size = 0.02) 
+pp.feat.10c1
+```
+
+
+```{r fig.height=3, fig.width=6, message=FALSE, warning=FALSE}
+pp.feat.10c2 <- VlnPlot(GEX.seur, features = c("LPS.sig_score"), 
+                      group.by = "new_clusters", #cols = color.cnt,
+                      ncol = 1, pt.size = 0, raster = F) + NoLegend() & geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55)&
+  stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) 
+pp.feat.10c2
+```
+
+```{r fig.height=3.15, fig.width=3.8, message=FALSE, warning=FALSE}
+pp.feat.10c3a <- VlnPlot(subset(GEX.seur,subset= age %in% c("P30.PBS") & new_clusters %in% paste0("C",1:3)), 
+                          features = c("LPS.sig_score"), 
+                        group.by = "cluster_cnt", cols = rep(color.cnt[1:3],3),
+                      ncol = 1, pt.size = 0, raster = F)+ NoLegend() & geom_boxplot(outlier.size = 0, fill="white", width=0.3, size=0.1, alpha=0.55) &
+  stat_summary(fun=mean, geom="point", shape=18, size=2, color="black", alpha=0.55) & ylim(c(0,0.7)) &
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = plot.contrast.a,
+                               label.y = (plot.labely.a-1)/10.5,
+                               size=1.75
+                               ) 
+pp.feat.10c3a
+```
+
+
+```{r fig.height=3.25, fig.width=6.25, message=FALSE, warning=FALSE}
+pp.feat.10c3b <- VlnPlot(subset(GEX.seur,subset= age %in% c("P30.LPS") & new_clusters %in% paste0("C",4:11)), 
+                          features = c("LPS.sig_score"), 
+                        group.by = "cluster_cnt", cols = rep(color.cnt[4:6],8),
+                      ncol = 1, pt.size = 0, raster = F)  + NoLegend() & geom_boxplot(outlier.size = 0, fill="white", width=0.3, size=0.1, alpha=0.55) &
+  stat_summary(fun=mean, geom="point", shape=18, size=2, color="black", alpha=0.55) & ylim(c(0.35,1)) &
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = plot.contrast.b,
+                               label.y = (plot.labely.b+1)/8.6,
+                               size=1.5
+                               )
+pp.feat.10c3b
+```
+
+
+
+```{r eval=FALSE, include=FALSE}
+#
+ggsave("figure1008/subset2.plot10.LPS_sig.a1.pdf",
+       width = 3.2, height = 2.5,
+       plot = pp.feat.10a1)
+ggsave("figure1008/subset2.plot10.LPS_sig.a2.pdf",
+       width = 3.2, height = 2.5,
+       plot = pp.feat.10a2)
+
+#
+ggsave("figure1008/subset2.plot10.LPS_sig.b1.pdf",
+       width = 4, height = 3.6,
+       plot = pp.feat.10b2)
+
+#
+ggsave("figure1008/subset2.plot10.LPS_sig.c1.pdf",
+       width = 6, height = 3,
+       plot = pp.feat.10c2)
+
+ggsave("figure1008/subset2.plot10.LPS_sig.c2a.pdf",
+       width = 3.8, height = 3.25,
+       plot = pp.feat.10c3a)
+
+ggsave("figure1008/subset2.plot10.LPS_sig.c2b.pdf",
+       width = 6.25, height = 3.25,
+       plot = pp.feat.10c3b)
+
+```
+
+
+### plot11            
+
+
+DAM score              
+
+
+```{r}
+DAM.sig <- read.csv("../../../20230811_10x_LYN/analysis_plus_exogene/figures1002/new/ranking_of_DAM_indicator_genes.csv")
+DAM.sig[1:8,]
+```
+
+```{r}
+DAM.list <- list(top50=DAM.sig$Gene[1:50],
+                 top100=DAM.sig$Gene[1:100],
+                 top250=DAM.sig$Gene[1:250],
+                 top500=DAM.sig$Gene[1:500])
+```
+
+
+```{r}
+DAM.list
+```
+
+
+```{r}
+lapply(DAM.list, length)
+```
+
+
+```{r}
+GEX.seur <- add_geneset_score(GEX.seur, DAM.list$top50, "DAM.sig_top50")
+GEX.seur <- add_geneset_score(GEX.seur, DAM.list$top100, "DAM.sig_top100")
+GEX.seur <- add_geneset_score(GEX.seur, DAM.list$top250, "DAM.sig_top250")
+GEX.seur <- add_geneset_score(GEX.seur, DAM.list$top500, "DAM.sig_top500")
+```
+
+
+
+```{r fig.width=12.3, fig.height=2.5}
+pp.feat.11a1 <- FeaturePlot(GEX.seur,features = c("DAM.sig_top50","DAM.sig_top100","DAM.sig_top250","DAM.sig_top500"), ncol = 4,
+                           raster = T, pt.size = 3.5#,keep.scale = "all"
+                           )
+pp.feat.11a1
+```
+
+```{r fig.height=2.5, fig.width=12.3, message=FALSE, warning=FALSE}
+mapal <- colorRampPalette(RColorBrewer::brewer.pal(4,"Spectral"))(120)
+pp.feat.11a2 <- FeaturePlot(GEX.seur,features = c("DAM.sig_top50","DAM.sig_top100","DAM.sig_top250","DAM.sig_top500"), ncol = 4,
+                        raster = T, pt.size = 3.5,
+            keep.scale = "all") & scale_color_gradientn(colors = rev(mapal))
+pp.feat.11a2
+```
+
+
+```{r fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
+pp.feat.11b1 <- VlnPlot(GEX.seur, features = c("DAM.sig_top50","DAM.sig_top100","DAM.sig_top250","DAM.sig_top500"), 
+                      group.by = "cnt", cols = color.cnt,
+                      ncol = 2, pt.size = 0, raster = F) & geom_jitter(alpha=0.15, shape=16, width = 0.2, size = 0.02)
+pp.feat.11b1
+```
+
+
+```{r fig.height=6, fig.width=8, message=FALSE, warning=FALSE}
+pp.feat.11b2 <- VlnPlot(GEX.seur, features = c("DAM.sig_top50","DAM.sig_top100","DAM.sig_top250","DAM.sig_top500"), 
+                      same.y.lims = T,
+                      group.by = "cnt", cols = color.cnt,
+                      ncol = 2, pt.size = 0, raster = F) & 
+    geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+  stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55) & 
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("P30.LPS.CTR","P30.LPS.MIG"),
+                                                  c("P30.LPS.MIG","P30.LPS.TDT"),
+                                                  c("P30.LPS.CTR","P30.LPS.TDT"),
+                                                  c("P30.PBS.CTR","P30.PBS.MIG"),
+                                                  c("P30.PBS.MIG","P30.PBS.TDT"),
+                                                  c("P30.PBS.CTR","P30.PBS.TDT"),
+                                                  c("P30.LPS.TDT","P30.PBS.TDT")),
+                               label.y = c(0.6,0.75,0.9,0.6,0.75,0.9,1.05),
+                               size=2.35
+                               )
+pp.feat.11b2
+```
+
+
+```{r fig.height=6, fig.width=12, message=FALSE, warning=FALSE}
+pp.feat.11c1 <- VlnPlot(GEX.seur, features = c("DAM.sig_top50","DAM.sig_top100","DAM.sig_top250","DAM.sig_top500"), 
+                      group.by = "new_clusters", #cols = color.cnt,
+                      ncol = 2, pt.size = 0, raster = F) & geom_jitter(alpha=0.15, shape=16, width = 0.2, size = 0.02)
+pp.feat.11c1
+```
+
+
+```{r fig.height=6, fig.width=12, message=FALSE, warning=FALSE}
+pp.feat.11c2 <- VlnPlot(GEX.seur, features = c("DAM.sig_top50","DAM.sig_top100","DAM.sig_top250","DAM.sig_top500"), 
+                      group.by = "new_clusters", #cols = color.cnt,
+                      ncol = 2, pt.size = 0, raster = F) & geom_boxplot(outlier.size = 0, fill="white", width=0.2, size=0.1, alpha=0.55) &
+  stat_summary(fun=mean, geom="point", shape=18, size=3, color="black", alpha=0.55)
+pp.feat.11c2
+```
+
+
+```{r fig.height=6.5, fig.width=7.6, message=FALSE, warning=FALSE}
+pp.feat.11c3a <- VlnPlot(subset(GEX.seur,subset= age %in% c("P30.PBS") & new_clusters %in% paste0("C",1:3)), 
+                          features = c("DAM.sig_top50","DAM.sig_top100","DAM.sig_top250","DAM.sig_top500"), 
+                        group.by = "cluster_cnt", cols = rep(color.cnt[1:3],3),
+                      ncol = 2, pt.size = 0, raster = F) & geom_boxplot(outlier.size = 0, fill="white", width=0.3, size=0.1, alpha=0.55) &
+  stat_summary(fun=mean, geom="point", shape=18, size=2, color="black", alpha=0.55) & ylim(c(-0.4,0.65)) &
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = plot.contrast.a,
+                               label.y = (plot.labely.a-1)/10.5,
+                               size=1.75
+                               )
+pp.feat.11c3a
+```
+
+```{r fig.height=6.5, fig.width=12.5, message=FALSE, warning=FALSE}
+pp.feat.11c3b <- VlnPlot(subset(GEX.seur,subset= age %in% c("P30.LPS") & new_clusters %in% paste0("C",4:11)), 
+                          features = c("DAM.sig_top50","DAM.sig_top100","DAM.sig_top250","DAM.sig_top500"), 
+                        group.by = "cluster_cnt", cols = rep(color.cnt[4:6],8),
+                      ncol = 2, pt.size = 0, raster = F) & geom_boxplot(outlier.size = 0, fill="white", width=0.3, size=0.1, alpha=0.55) &
+  stat_summary(fun=mean, geom="point", shape=18, size=2, color="black", alpha=0.55) & ylim(c(-0.25,1.3)) &
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = plot.contrast.b,
+                               label.y = (plot.labely.b-1)/5.5,
+                               size=1.5
+                               ) 
+pp.feat.11c3b
+```
+
+
+
+```{r eval=FALSE, include=FALSE}
+#
+ggsave("figure1008/subset2.plot11.DAM.a1.pdf",
+       width = 12.3, height = 2.5,
+       plot = pp.feat.11a1)
+ggsave("figure1008/subset2.plot11.DAM.a2.pdf",
+       width = 12.3, height = 2.5,
+       plot = pp.feat.11a2)
+
+#
+ggsave("figure1008/subset2.plot11.DAM.b1.pdf",
+       width = 8, height = 6.6,
+       plot = pp.feat.11b2)
+
+#
+ggsave("figure1008/subset2.plot11.DAM.c1.pdf",
+       width = 12, height = 6,
+       plot = pp.feat.11c2)
+
+ggsave("figure1008/subset2.plot11.DAM.c2a.pdf",
+       width = 7.6, height = 6.5,
+       plot = pp.feat.11c3a)
+
+ggsave("figure1008/subset2.plot11.DAM.c2b.pdf",
+       width = 12.5, height = 6.5,
+       plot = pp.feat.11c3b)
+
+```
+
+
+```{r}
+#saveRDS(GEX.seur,"./Spp1tdt.subset2_P30LPS_P30PBS..new1008.rds")
+#GEX.seur <- readRDS("./Spp1tdt.subset2_P30LPS_P30PBS..new1008.rds")
+```
+
+
+
+## newlist1009             
+
+
+dotplot and violin in conditions           
+
+
+```{r}
+GEX.seur
+```
+
+```{r}
+marker1009 <- as.vector(unlist(read.table("./dotplot.subset2_newlist1009.txt")))
+marker1009 <- unique(marker1009)
+marker1009
+```
+
+
+```{r}
+length(marker1009)
+sum(marker1009 %in% markers.new$gene)
+```
+
+```{r}
+marker1009.sort <- (markers.new %>% group_by(cluster) %>% 
+                  filter(gene %in% marker1009) %>%
+                   ungroup() %>%
+    #arrange(desc(avg_log2FC*pct.1),gene) %>%
+    arrange(desc(avg_log2FC),gene) %>%
+                             distinct(gene, .keep_all = TRUE) %>%
+                             arrange(cluster,p_val_adj))$gene
+```
+
+
+```{r}
+length(marker1009)
+length(marker1009.sort)
+setdiff(marker1009,marker1009.sort)
+```
+
+```{r}
+marker1009.new <- c(marker1009.sort[1:8],"Fcrls",marker1009.sort[9:31])
+```
+
+
+```{r fig.width=7.6,fig.height=3.5}
+pp.dot.x1a <- DotPlot(GEX.seur, features = marker1009, group.by = "new_clusters"
+                         ) +
+                 theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1)) + labs(y="Clusters")
+pp.dot.x1a
+```
+
+
+```{r fig.height=3.5, fig.width=8.1, message=FALSE}
+pp.dot.x1a <- DotPlot(GEX.seur, features = marker1009.new, group.by = "new_clusters",cols = c("lightgrey","red")
+                         ) +
+                 theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1)) + labs(y="Clusters")
+pp.dot.x1a
+
+pp.dot.x1a  + scale_color_gradientn(colours  = rev(mapal))
+```
+
+
+```{r fig.height=3, fig.width=8.7, message=FALSE}
+pp.dot.x1b <- DotPlot(GEX.seur, features = marker1009.new, group.by = "cnt",cols = c("lightgrey","red")
+                         ) +
+                 theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1)) + labs(y="Conditions")
+pp.dot.x1b
+
+pp.dot.x1b  + scale_color_gradientn(colours  = rev(mapal))
+
+```
+
+
+```{r fig.height=21.7, fig.width=18, message=FALSE, warning=FALSE}
+pp.violin.x1b <- VlnPlot(GEX.seur, features = marker1009.new, group.by = "cnt", cols = color.cnt,
+                      ncol = 5, pt.size = 0, raster = F) & geom_boxplot(outlier.size = 0, fill="white", width=0.3, size=0.1, alpha=0.55) &
+  stat_summary(fun=mean, geom="point", shape=18, size=2, color="black", alpha=0.55)
+pp.violin.x1b
+```
+
+
+```{r fig.height=25.9, fig.width=18, message=FALSE, warning=FALSE}
+pp.violin.x1c <- VlnPlot(GEX.seur, features = marker1009.new, group.by = "cnt", cols = color.cnt,
+                      ncol = 5, pt.size = 0, raster = F) & geom_boxplot(outlier.size = 0, fill="white", width=0.3, size=0.1, alpha=0.55) &
+  stat_summary(fun=mean, geom="point", shape=18, size=2, color="black", alpha=0.55) & ylim(c(0,7.2)) &
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("P30.LPS.CTR","P30.LPS.MIG"),
+                                                  c("P30.LPS.MIG","P30.LPS.TDT"),
+                                                  c("P30.LPS.CTR","P30.LPS.TDT"),
+                                                  c("P30.PBS.CTR","P30.PBS.MIG"),
+                                                  c("P30.PBS.MIG","P30.PBS.TDT"),
+                                                  c("P30.PBS.CTR","P30.PBS.TDT"),
+                                                  c("P30.LPS.TDT","P30.PBS.TDT")),
+                               label.y = c(6.3,6.8,7.3,6.3,6.8,7.3,7.8)-1,
+                               size=1.75
+                               )
+pp.violin.x1c
+```
+
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("figure1008/subset2.newlist.dot.a1.pdf",
+       width = 8.8,height = 3.5,
+       plot = pp.dot.x1a )
+ggsave("figure1008/subset2.newlist.dot.a2.pdf",
+       width = 8.8,height = 3.5,
+       plot = pp.dot.x1a  + scale_color_gradientn(colours  = rev(mapal)))
+
+ggsave("figure1008/subset2.newlist.dot.b1.pdf",
+       width = 9.6,height = 3,
+       plot = pp.dot.x1b )
+ggsave("figure1008/subset2.newlist.dot.b2.pdf",
+       width = 9.6,height = 3,
+       plot = pp.dot.x1b  + scale_color_gradientn(colours  = rev(mapal)))
+
+write.table(marker1009.new, "figure1008/subset2.newlist.sort.txt", row.names = F, col.names = F, quote = F)
+
+ggsave("figure1008/subset2.newlist.violin.b1.pdf",
+       width = 18, height = 21.7,
+       plot = pp.violin.x1b)
+
+ggsave("figure1008/subset2.newlist.violin.b2.pdf",
+       width = 18, height = 25.9,
+       plot = pp.violin.x1c)
+```
+
+
+
+## forGEO            
+
+
+```{r}
+GEX.seur <- readRDS("./Spp1tdt.subset2_P30LPS_P30PBS..new1008.rds")
+GEX.seur
+```
+
+
+```{r paged.print=FALSE}
+GEX.seur@meta.data[,grep("snn|pANN",colnames(GEX.seur@meta.data),value = T)] <- NULL
+head(GEX.seur@meta.data)
+```
+
+
+```{r}
+#saveRDS(GEX.seur,"I:/Shared_win/projects/202310_Spp1DAM/forGEO/seur_obj/Spp1TDT_P30LPS.final.seur_obj.rds")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

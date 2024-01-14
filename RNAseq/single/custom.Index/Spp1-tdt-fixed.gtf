@@ -1,0 +1,4 @@
+CreERT2.complete	local	exon	1	2170	.	+	.	gene_id "CreERT2"; transcript_id "CreERT2"; gene_name "CreERT2"; gene_biotype "protein_coding";
+tdTomato.complete	local	exon	1	280	.	+	.	gene_id "tdTomato-head"; transcript_id "tdTomato-head"; gene_name "tdTomato-head"; gene_biotype "protein_coding";
+tdTomato.complete	local	exon	300	1200	.	+	.	gene_id "tdTomato-mid"; transcript_id "tdTomato-mid"; gene_name "tdTomato-mid"; gene_biotype "protein_coding";
+tdTomato.complete	local	exon	1600	2025	.	+	.	gene_id "tdTomato-tail"; transcript_id "tdTomato-tail"; gene_name "tdTomato-tail"; gene_biotype "protein_coding";

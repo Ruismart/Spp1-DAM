@@ -1,0 +1,1769 @@
+---
+output: 
+  html_document: 
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+--- 
+             
+
+# plus sc10x            
+      
+run cellranger with Spp1-tdt mod reference index                          
+
+exogenous genes:       
+CreERT2 (following the final Spp1-exon which is not complete, might be hardly detected in this time point)                      
+tdTomato (further fixed: separated as head(1-280)/mid(300-1200)/tail(1600-2025))             
+
+tdTomato-head signal in 10x may represent former structure with 'stop codon' instead of Cre-edited tdTomato-transcript             
+tdTomato-mid signal cover the up-half of tdTomato, not sure how it's sequenced, but seems like real tdt signal                   
+tdTomato-tail signal within final 3-400bp of complete tdTomato structure should be the expected tdTomato-transcript         
+       
+indeed, tdt-head highly enriched in CTR/MIG samples,       
+however, tdt-mid got much higher than tdt-tail, they both expressed like real tdt signal            
+
+
+##### load dependancies                
+```{r message=FALSE, warning=FALSE, include=FALSE}
+source("I:/Shared_win/projects/RNA_normal/analysis.10x.r")
+```
+
+
+
+loading 70k cells, CX3CR1+             
+plus, cellranger called 39,986 cells            
+
+
+## load 10x data      
+
+```{r}
+filt.10x <- Read10X(data.dir = "../output_plus_fixed/filtered_feature_bc_matrix/")
+``` 
+
+
+```{r}
+GEX <- filt.10x$`Gene Expression`
+FB <- filt.10x$`Antibody Capture`
+```
+
+
+### check datasets   
+```{r message=FALSE, warning=FALSE}
+dim(GEX)
+GEX[1:6,1:6]
+```
+
+
+```{r}
+dim(FB)
+FB[,1:6]
+```
+
+
+```{r}
+rowSums(FB)
+```
+
+```{r}
+rowSums(FB>0)
+```
+
+## FB     
+      
+```{r}
+# build seurat object
+FB.seur <- CreateSeuratObject(counts = FB,project = "Spp1tdt")
+
+FB.seur
+```
+
+
+```{r}
+rownames(FB.seur)
+```
+
+
+### normalization     
+    
+perform Seurat 'Demultiplexing with hashtag oligos(HTOs)     
+ref https://satijalab.org/seurat/articles/hashing_vignette.html       
+    
+```{r}
+# normalize
+FB.seur <- NormalizeData(FB.seur)
+FB.seur <- FindVariableFeatures(FB.seur, selection.method = "mean.var.plot")
+FB.seur <- ScaleData(FB.seur, features = VariableFeatures(FB.seur))
+
+# independent assay for HTO data  
+FB.seur[['HTO']] <- CreateAssayObject(counts = FB)
+FB.seur <- NormalizeData(FB.seur, assay = 'HTO', normalization.method = 'CLR')
+```
+
+
+### check demux         
+
+first define FB colors based on conditions                      
+
+```{r fig.height=6, fig.width=8.1}
+scales::show_col(ggsci::pal_igv("default")(49))
+```
+
+
+```{r}
+color.FB <- ggsci::pal_igv("default")(49)[c(8,32,40,
+                                            34,26,33,28,
+                                            2,43,18)]
+
+#2,13,33,1,15,
+#34,26,28,40,18
+
+level.FB <- c(rownames(FB.seur))
+
+color.FBraw <-  c("#FF6C91","lightgrey",color.FB)
+```
+
+
+```{r}
+scales::show_col(color.FBraw, ncol = 5)
+scales::show_col(color.FB, ncol = 5)
+```
+
+
+```{r fig.height=6.5, fig.width=15, message=FALSE, warning=FALSE}
+par(mfrow=c(2,5))
+
+#plot(sort(rowSums(t(FB))),
+#     xlab="reordered cells", 
+#     ylab="UMI counts", log="xy",
+#     main="sum")
+
+
+plot(sort(t(FB)[,1]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[1])
+plot(sort(t(FB)[,2]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[2])
+plot(sort(t(FB)[,3]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[3])
+plot(sort(t(FB)[,4]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[4])
+plot(sort(t(FB)[,5]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[5])
+plot(sort(t(FB)[,6]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[6])
+plot(sort(t(FB)[,7]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[7])
+plot(sort(t(FB)[,8]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[8])
+plot(sort(t(FB)[,9]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[9])
+plot(sort(t(FB)[,10]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[10])
+```
+
+
+
+#### range 'q'         
+
+##### q0.50 ~ 0.99       
+
+```{r include=FALSE, paged.print=FALSE}
+FB.test <- FB.seur
+#cut.list <- list()
+
+table.demux <- data.frame(sample=c("quantile","Doublet",rownames(FB.test),"Negative"))
+
+for(i in 50:99){
+  FB.test <- HTODemux(FB.test, assay = "HTO", positive.quantile = i/100)
+  table.demux <- cbind(table.demux,
+                       c(i/100,table(FB.test$hash.ID)[c("Doublet",rownames(FB.test),"Negative")]))
+}
+rownames(table.demux) <- table.demux$sample
+table.demux <- table.demux[,2:ncol(table.demux)]
+table.demux <- data.frame(t(table.demux))
+rownames(table.demux) <- NULL
+table.demux
+```
+
+
+
+```{r fig.width=18, fig.height=10}
+#color.FB <- scales::hue_pal()(10)
+par(mfrow=c(3,5))
+
+
+plot(table.demux$Doublet, type="p", col="#FF6C91", pch=16, ylab="Doublet")
+plot(table.demux$Negative, type="p", col="lightgrey", pch=16, ylab="Negative")
+plot(rowSums(table.demux[,grep("P30|P06",colnames(table.demux))]), type="p", col="#306000", pch=16, ylab="Singlet")
+
+plot(table.demux$quantile, pch=16, ylab="mod-quantile")
+plot.new()
+
+plot(table.demux[,2+1], type="p", col=color.FB[1], pch=16, ylab=colnames(table.demux)[2+1])
+plot(table.demux[,2+2], type="p", col=color.FB[2], pch=16, ylab=colnames(table.demux)[2+2])
+plot(table.demux[,2+3], type="p", col=color.FB[3], pch=16, ylab=colnames(table.demux)[2+3])
+plot(table.demux[,2+4], type="p", col=color.FB[4], pch=16, ylab=colnames(table.demux)[2+4])
+plot(table.demux[,2+5], type="p", col=color.FB[5], pch=16, ylab=colnames(table.demux)[2+5])
+
+plot(table.demux[,2+6], type="p", col=color.FB[6], pch=16, ylab=colnames(table.demux)[2+6])
+plot(table.demux[,2+7], type="p", col=color.FB[7], pch=16, ylab=colnames(table.demux)[2+7])
+plot(table.demux[,2+8], type="p", col=color.FB[8], pch=16, ylab=colnames(table.demux)[2+8])
+plot(table.demux[,2+9], type="p", col=color.FB[9], pch=16, ylab=colnames(table.demux)[2+9])
+plot(table.demux[,2+10], type="p", col=color.FB[10], pch=16, ylab=colnames(table.demux)[2+10])
+
+```
+
+
+##### q0.9900 ~ 0.9999               
+
+```{r include=FALSE, paged.print=FALSE}
+FB.test <- FB.seur
+#cut.list <- list()
+
+table.demux.s <- data.frame(sample=c("quantile","Doublet",rownames(FB.test),"Negative"))
+
+for(i in 9900:9999){
+  FB.test <- HTODemux(FB.test, assay = "HTO", positive.quantile = i/10000)
+  table.demux.s <- cbind(table.demux.s,
+                       c(i/10000,table(FB.test$hash.ID)[c("Doublet",rownames(FB.test),"Negative")]))
+}
+rownames(table.demux.s) <- table.demux.s$sample
+table.demux.s <- table.demux.s[,2:ncol(table.demux.s)]
+table.demux.s <- data.frame(t(table.demux.s))
+rownames(table.demux.s) <- NULL
+table.demux.s
+```
+
+
+```{r fig.width=18, fig.height=10}
+#color.FB <- scales::hue_pal()(10)
+par(mfrow=c(3,5))
+
+
+plot(table.demux.s$Doublet, type="p", col="#FF6C91", pch=16, ylab="Doublet")
+plot(table.demux.s$Negative, type="p", col="lightgrey", pch=16, ylab="Negative")
+plot(rowSums(table.demux.s[,grep("P30|P06",colnames(table.demux.s))]), type="p", col="#306000", pch=16, ylab="Singlet")
+
+plot(table.demux.s$quantile, pch=16, ylab="mod-quantile")
+plot.new()
+
+plot(table.demux.s[,2+1], type="p", col=color.FB[1], pch=16, ylab=colnames(table.demux.s)[2+1])
+plot(table.demux.s[,2+2], type="p", col=color.FB[2], pch=16, ylab=colnames(table.demux.s)[2+2])
+plot(table.demux.s[,2+3], type="p", col=color.FB[3], pch=16, ylab=colnames(table.demux.s)[2+3])
+plot(table.demux.s[,2+4], type="p", col=color.FB[4], pch=16, ylab=colnames(table.demux.s)[2+4])
+plot(table.demux.s[,2+5], type="p", col=color.FB[5], pch=16, ylab=colnames(table.demux.s)[2+5])
+
+plot(table.demux.s[,2+6], type="p", col=color.FB[6], pch=16, ylab=colnames(table.demux.s)[2+6])
+plot(table.demux.s[,2+7], type="p", col=color.FB[7], pch=16, ylab=colnames(table.demux.s)[2+7])
+plot(table.demux.s[,2+8], type="p", col=color.FB[8], pch=16, ylab=colnames(table.demux.s)[2+8])
+plot(table.demux.s[,2+9], type="p", col=color.FB[9], pch=16, ylab=colnames(table.demux.s)[2+9])
+plot(table.demux.s[,2+10], type="p", col=color.FB[10], pch=16, ylab=colnames(table.demux.s)[2+10])
+
+```
+
+```{r eval=FALSE, include=FALSE}
+write.csv(table.demux, "sample_distribution.table.demux.q0.50_0.99.csv")
+write.csv(table.demux.s, "sample_distribution.table.demux.q0.9900_0.9999.csv")
+```
+
+
+### demultiplexing        
+
+(just using q0.999 as an optimal cutoff for all except tag4 would take q0.996)                       
+
+
+```{r}
+# Demultiplex cells based on HTO enrichment
+FB.seur <- HTODemux(FB.seur, assay = 'HTO', positive.quantile = 0.99)
+
+table(FB.seur$HTO_classification.global)
+table(FB.seur$hash.ID)[c("Doublet","Negative",rownames(FB))]
+```
+
+tag4 would take q0.996 cutoff      
+
+```{r}
+# Demultiplex cells based on HTO enrichment
+FB.seur <- HTODemux(FB.seur, assay = 'HTO', positive.quantile = 0.996)
+
+table(FB.seur$HTO_classification.global)
+table(FB.seur$hash.ID)[c("Doublet","Negative",rownames(FB))]
+```
+
+
+```{r}
+# Demultiplex cells based on HTO enrichment
+FB.seur <- HTODemux(FB.seur, assay = 'HTO', positive.quantile = 0.999)
+
+table(FB.seur$HTO_classification.global)
+table(FB.seur$hash.ID)[c("Doublet","Negative",rownames(FB))]
+```
+
+
+```{r}
+# tags q0.999
+#   tag4 would take q0.996 cutoff  47->39
+cutoff.FB <- c(20,45,28,39,16,
+               23,16,21,34,23)
+
+names(cutoff.FB) <- rownames(FB.seur)
+cutoff.FB
+```
+
+
+```{r fig.height=6.5, fig.width=15, message=FALSE, warning=FALSE}
+par(mfrow=c(2,5))
+
+#plot(sort(rowSums(t(FB))),
+#     xlab="reordered cells", 
+#     ylab="UMI counts", log="xy",
+#     main="sum")
+
+
+plot(sort(t(FB)[,1]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[1])
+abline(h=cutoff.FB[1],col = color.FB[1])
+plot(sort(t(FB)[,2]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[2])
+abline(h=cutoff.FB[2],col = color.FB[2])
+plot(sort(t(FB)[,3]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[3])
+abline(h=cutoff.FB[3],col = color.FB[3])
+plot(sort(t(FB)[,4]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[4])
+abline(h=cutoff.FB[4],col = color.FB[4])
+plot(sort(t(FB)[,5]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[5])
+abline(h=cutoff.FB[5],col = color.FB[5])
+
+plot(sort(t(FB)[,6]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[6])
+abline(h=cutoff.FB[6],col = color.FB[6])
+plot(sort(t(FB)[,7]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[7])
+abline(h=cutoff.FB[7],col = color.FB[7])
+plot(sort(t(FB)[,8]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[8])
+abline(h=cutoff.FB[8],col = color.FB[8])
+plot(sort(t(FB)[,9]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[9])
+abline(h=cutoff.FB[9],col = color.FB[9])
+plot(sort(t(FB)[,10]),
+     xlab="reordered cells", 
+     ylab="UMI counts", log="xy",
+     main=rownames(FB)[10])
+abline(h=cutoff.FB[10],col = color.FB[10])
+```
+
+
+
+```{r}
+custom.Demux <- function(FBobj,FBcutoff){
+  # define decision matrix
+  dd <- FBobj@assays[['HTO']]@counts
+  dd <- apply(dd, 2, function(x){
+    x > FBcutoff
+  })
+  x1 <- colSums(dd)
+  x1[x1>1] <- "Doublet"
+  x1[x1==0] <- "Negative"
+  x1[x1==1] <- "Singlet"
+
+  x2 <- x1
+  
+  bc.slt  <- names(x1)[x1=="Singlet"]
+  
+  for(bc in bc.slt){
+    x2[bc] <- rownames(dd)[dd[,bc]]
+  }
+  
+  FBdf <- data.frame(HTO_classification.global=factor(x1,
+                                                      levels = c("Doublet","Negative","Singlet")),
+                     hash.ID=factor(x2,
+                                    levels = c("Doublet","Negative",rownames(dd))))
+  return(FBdf)
+}
+
+df.FB <- custom.Demux(FB.seur,cutoff.FB)
+```
+
+
+```{r paged.print=FALSE}
+dim(df.FB)
+df.FB[1:10,]
+```
+
+
+```{r}
+table(df.FB$HTO_classification.global)
+table(df.FB)
+```
+
+
+```{r paged.print=FALSE}
+FB.seur@meta.data[,c("HTO_classification.global","hash.ID")] <- df.FB
+FB.seur@meta.data[1:4,]
+```
+
+
+```{r}
+## if all using same q, run this chunk instead of several custom ones above
+#
+#FB.seur$HTO_classification.global <- factor(as.character(FB.seur$HTO_classification.global),
+#                                            levels = c("Doublet","Negative","Singlet"))
+#FB.seur$hash.ID <- factor(as.character(FB.seur$hash.ID),
+#                          levels = c("Doublet","Negative",rownames(FB.seur)))
+```
+
+
+```{r singlelt, fig.height=4, fig.width=4}
+sl_stat <- table(FB.seur$HTO_classification.global)
+barplot(sl_stat,ylim = c(0,30500),col = c("#FF6C91","lightgrey","#7CAE00"),main = "Feature Barcode statistics")
+text(x=1:3*1.2-0.5,y=sl_stat+1680,paste0(sl_stat,"\n",100*round(as.numeric(sl_stat/sum(sl_stat)),4),"%"),cex = 0.75)
+```
+
+
+#### RidgePlot    
+##### with ridge plots, raw    
+```{r fig.width=12,fig.height=6,message=FALSE, warning=FALSE}
+FB.seur@active.ident <- factor(FB.seur$HTO_maxID,levels=rownames(FB.seur))
+
+RidgePlot(FB.seur, assay = 'HTO', features = rownames(FB.seur[['HTO']]),same.y.lims= TRUE, ncol=5,
+          cols = color.FB) 
+```
+
+
+##### with ridge plots, filtered    
+
+```{r fig.width=12,fig.height=7,message=FALSE, warning=FALSE}
+#FB.seur@meta.data$hash.ID.sort <- factor(as.character(FB.seur@meta.data$hash.ID),levels = c("Doublet","Negative",levels(FB.seur@active.ident)))
+RidgePlot(FB.seur, assay = 'HTO', features = rownames(FB.seur[['HTO']]), ncol=5,same.y.lims= TRUE,
+          cols = c("#FF6C91","lightgrey",color.FB),group.by = "hash.ID") 
+```
+
+
+
+#### tSNE for HTOs     
+     
+     
+```{r message=FALSE, warning=FALSE}
+# first, remove negative cells from th object
+#FB.seur.subset <- FB.seur
+
+# Calculate a tSNE embedding of the HTO data
+#DefaultAssay(FB.seur.subset) <- "HTO"
+
+#FB.seur.subset <- ScaleData(FB.seur.subset, features = rownames(FB.seur.subset), verbose = FALSE)
+#FB.seur.subset <- RunPCA(FB.seur.subset, features = rownames(FB.seur.subset), approx = FALSE)
+#FB.seur.subset <- RunTSNE(FB.seur.subset, dims = 1:10, perplexity = 500, check_duplicates = FALSE)
+
+
+#saveRDS(FB.seur.subset, "FB1006.seur.subset.rds")
+FB.seur.subset <- readRDS("FB1006.seur.subset.rds")
+```
+
+
+
+```{r fig.width=5.5,fig.height=8.6}
+multiplot(
+DimPlot(FB.seur.subset, order =  rev(rownames(FB.seur)),
+        cols = color.FB) + labs(title = "FB Max_ID"), 
+DimPlot(FB.seur.subset, order = rev(c("Negative",rownames(FB.seur),"Doublet")), 
+        group.by = 'hash.ID', label = F,
+        cols = c("lightgrey",color.FB,"#FF6C91")) + 
+  labs(title = "FB Filtered_ID") + theme(plot.title = element_text(hjust = 0)) ,
+cols = 1)
+```
+
+generally looks good,      
+a few remained putative doublets need to filter out in GEX part            
+
+
+### stat    
+
+```{r}
+FB.seur$HTO_classification.global <- factor(as.character(FB.seur$HTO_classification.global),
+                                            levels = c("Doublet","Negative","Singlet"))
+Idents(FB.seur) <- "HTO_classification.global"
+VlnPlot(FB.seur, features = "nCount_RNA", pt.size = 0, log = TRUE, cols = c("#F8766D","lightgrey","#00BA38"))
+VlnPlot(FB.seur, features = "nCount_RNA", pt.size = 0, log = TRUE, cols = c("#F8766D","lightgrey","#00BA38")) + geom_jitter(alpha=0.015)
+```
+
+
+```{r}
+table(FB.seur@meta.data$hash.ID)
+```
+
+
+```{r fig.width=7.2,fig.height=4}
+par(mar=c(6,4,2,3))
+sl_stat <- table(FB.seur$hash.ID)
+barplot(sl_stat,ylim = c(0,16800),
+        col = c("#FF6C91","lightgrey",color.FB),
+        main = "Feature Barcode statistics",cex.names = 0.75, xaxt = "n")
+axis(1,1:12*1.2-0.48 ,levels(FB.seur@meta.data$hash.ID), las=3, cex.axis=0.85)
+text(x=1:12*1.2-0.45,y=sl_stat+1075,paste0(sl_stat,"\n",100*round(as.numeric(sl_stat/sum(sl_stat)),4),"%"),cex = 0.75)
+```
+
+
+## GEX    
+    
+mainly follow https://satijalab.org/seurat/articles/pbmc3k_tutorial.html    
+
+
+```{r message=FALSE, warning=FALSE}
+GEX.seur <- CreateSeuratObject(counts = GEX,
+                               min.cells = 3,
+                               min.features = 200,
+                               project = "Spp1tdt")
+GEX.seur
+```
+
+
+### filtering    
+
+#### MT genes   
+```{r}
+grep("^mt-",rownames(GEX),value = T)
+```
+
+```{r}
+MT_gene <- grep("^mt-",rownames(GEX.seur),value = T)
+GEX.seur[["percent.mt"]] <- PercentageFeatureSet(GEX.seur, features = MT_gene)
+
+RB_gene <- grep("^Rps|^Rpl",rownames(GEX.seur),value = T)
+GEX.seur[["percent.rb"]] <- PercentageFeatureSet(GEX.seur, features = RB_gene)
+
+# Visualize QC metrics as a violin plot
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt","percent.rb"), ncol = 4, pt.size = 0.01)
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt","percent.rb"), ncol = 4, pt.size = 0)
+```
+
+
+```{r fig.width=15,fig.height=4}
+plota <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.mt") 
+plotb <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") 
+plotc <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.rb")
+plota + plotb + plotc
+```
+
+
+#### add FB info      
+
+```{r}
+GEX.seur$FB.info <- FB.seur@meta.data[rownames(GEX.seur@meta.data),"hash.ID"]
+#head(GEX.seur@meta.data)
+```
+
+
+```{r}
+table(GEX.seur$FB.info)
+```
+
+
+```{r fig.width=8.1, fig.height=8}
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        #ncol = 3, 
+        ncol = 2,
+        cols = c("#FF6C91","lightgrey",color.FB),
+        pt.size = 0.1, split.by = "FB.info")
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        #ncol = 3, 
+        ncol = 2,
+        cols = c("#FF6C91","lightgrey",color.FB),
+        pt.size = 0, split.by = "FB.info")
+```
+
+
+```{r}
+GEX.seur <- subset(GEX.seur, subset = FB.info!="Doublet" & FB.info!="Negative")
+GEX.seur
+```
+
+
+```{r fig.width=8, fig.height=5}
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt","percent.rb"), ncol = 4, pt.size = 0.1)
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt","percent.rb"), ncol = 4, pt.size = 0)
+```
+
+
+```{r fig.width=8.1, fig.height=8}
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        #ncol = 3, 
+        ncol = 2,
+        cols = c("#FF6C91","lightgrey",color.FB),
+        pt.size = 0.1, split.by = "FB.info")
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        #ncol = 3, 
+        ncol = 2,
+        cols = c("#FF6C91","lightgrey",color.FB),
+        pt.size = 0, split.by = "FB.info")
+```
+
+
+```{r fig.width=15,fig.height=4}
+plota <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.mt") 
+plotb <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") 
+plotc <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.rb") 
+plota + plotb + plotc
+```
+
+
+
+#### filtering   
+
+
+```{r}
+GEX.seur <- subset(GEX.seur, subset = percent.mt < 10 & nFeature_RNA > 800 & nFeature_RNA < 4500 & nCount_RNA < 16000)
+GEX.seur
+```
+
+filtered obj        
+```{r fig.width=8, fig.height=5}
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt","percent.rb"), ncol = 4, pt.size = 0.1)
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt","percent.rb"), ncol = 4, pt.size = 0)
+```
+
+
+```{r fig.width=8.1, fig.height=8}
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        #ncol = 3, 
+        ncol = 2,
+        cols = color.FBraw,
+        pt.size = 0.1, split.by = "FB.info")
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        #ncol = 3, 
+        ncol = 2,
+        cols = color.FBraw,
+        pt.size = 0, split.by = "FB.info")
+```
+
+
+```{r fig.width=15,fig.height=4}
+plota <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.mt") 
+plotb <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") 
+plotc <- FeatureScatter(GEX.seur, feature1 = "nCount_RNA", feature2 = "percent.rb") 
+plota + plotb + plotc
+```
+
+
+```{r fig.width=7.2,fig.height=4}
+par(mar=c(6,4,2,3))
+sl_stat <- table(FB.seur$hash.ID)
+barplot(sl_stat,ylim = c(0,15800),
+        col = c("#FF6C91","lightgrey",color.FB),
+        main = "Feature Barcode statistics",cex.names = 0.75, xaxt = "n")
+axis(1,1:12*1.2-0.48 ,levels(FB.seur@meta.data$hash.ID), las=3, cex.axis=0.85)
+text(x=1:12*1.2-0.45,y=sl_stat+1075,paste0(sl_stat,"\n",100*round(as.numeric(sl_stat/sum(sl_stat)),4),"%"),cex = 0.75)
+```
+
+
+```{r fig.width=7.2,fig.height=4}
+par(mar=c(6,4,2,3))
+sl_stat <- table(GEX.seur$FB.info)
+barplot(sl_stat,ylim = c(0,3800),
+        col = c("#FF6C91","lightgrey",color.FB),
+        main = "Feature Barcode statistics",cex.names = 0.75, xaxt = "n")
+axis(1,1:12*1.2-0.48 ,levels(FB.seur@meta.data$hash.ID), las=3, cex.axis=0.85)
+text(x=1:12*1.2-0.45,y=sl_stat+245,paste0(sl_stat,"\n",100*round(as.numeric(sl_stat/sum(sl_stat)),4),"%"),cex = 0.75)
+```
+
+
+#### check cellcycle       
+```{r}
+s.genes <- Hmisc::capitalize(tolower(cc.genes.updated.2019$s.genes))
+g2m.genes <- Hmisc::capitalize(tolower(cc.genes.updated.2019$g2m.genes))
+
+GEX.seur <- CellCycleScoring(GEX.seur,
+                             s.features = s.genes,
+                             g2m.features = g2m.genes)
+```
+
+
+```{r}
+VlnPlot(GEX.seur, features = c("S.Score", "G2M.Score"), group.by = "FB.info", 
+    ncol = 2, pt.size = 0.1)
+```
+
+
+```{r message=FALSE, warning=FALSE}
+GEX.seur.cc <- GEX.seur
+
+GEX.seur.cc <- NormalizeData(GEX.seur.cc)
+GEX.seur.cc <- FindVariableFeatures(GEX.seur.cc)
+GEX.seur.cc <- ScaleData(GEX.seur.cc)
+Idents(GEX.seur.cc) <- "Phase"
+RidgePlot(GEX.seur.cc, features = c("Pcna", "Top2a", "Mcm6", "Mki67"), ncol = 2)
+```
+
+```{r message=FALSE, warning=FALSE}
+GEX.seur.cc <- RunPCA(GEX.seur.cc, features = c(s.genes, g2m.genes))
+DimPlot(GEX.seur.cc, reduction = 'pca')
+```
+
+
+P06 has much more cycling      
+
+
+#### Normalizing          
+
+```{r}
+GEX.seur <- NormalizeData(GEX.seur, normalization.method = "LogNormalize", scale.factor = 10000)
+```
+
+
+```{r message=FALSE, warning=FALSE,fig.width=12,fig.height=5}
+GEX.seur <- FindVariableFeatures(GEX.seur, selection.method = "vst", nfeatures = 1600)
+
+# Identify the 10 most highly variable genes
+#top10 <- head(VariableFeatures(GEX.seur), 10)
+top20 <- head(VariableFeatures(GEX.seur), 20)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(GEX.seur)
+plot2 <- LabelPoints(plot = plot1, points = top20, repel = T)
+plot1 + plot2
+```
+
+
+```{r}
+head(VariableFeatures(GEX.seur), 300)
+```
+
+
+```{r}
+GEX.seur <- ScaleData(GEX.seur, features = rownames(GEX.seur))
+```
+
+#### PCA       
+
+```{r}
+# exclude MT genes  and more 
+#   add sex-related Xist/Tsix
+
+DIG <- grep("^Tra|^Trb|^Trg|^Trd|^Tcr|^Igm|^Igh|^Igk|^Igl|Jchain|Mzb1|Vpreb|Lars2|Jun|Fos|Egr1|^Hsp|^Rps|^Rpl|Hbb-|Hba-|^Dnaj|^AC|^AI|^AA|^AW|^AY|^BC|^Gm|^Hist|Rik$|-ps|Xist|Tsix|^Ifi|^Isg|^Mcm",
+            rownames(GEX.seur),value = T)
+CC_gene <- Hmisc::capitalize(tolower(as.vector(unlist(cc.genes.updated.2019))))
+MT_gene <- grep("^mt-",rownames(GEX.seur),value = T)
+
+VariableFeatures(GEX.seur) <- setdiff(VariableFeatures(object = GEX.seur),
+                                                c(MT_gene,
+                                                  DIG, 
+                                                  CC_gene) )
+
+GEX.seur <- RunPCA(GEX.seur, features = VariableFeatures(GEX.seur))
+```
+
+
+```{r}
+length(VariableFeatures(GEX.seur))
+head(VariableFeatures(GEX.seur),500)
+```
+
+```{r}
+grep("tdTomato|Tubb",VariableFeatures(GEX.seur),value = T)
+```
+
+
+
+```{r fig.width=11.8,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "pca",dims = 1:2, group.by = "orig.ident") +
+  DimPlot(GEX.seur, reduction = "pca",dims = 3:4, group.by = "orig.ident")
+```
+
+```{r fig.width=11.5,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "pca",dims = 1:2, group.by = "FB.info", cols = color.FB) +
+  DimPlot(GEX.seur, reduction = "pca",dims = 3:4, group.by = "FB.info", cols = color.FB)
+```
+
+
+```{r pcsheat,fig.width=12,fig.height=15}
+DimHeatmap(GEX.seur, dims = 1:12, cells = 1500, balanced = TRUE,ncol = 4)
+```
+
+
+```{r paged.print=FALSE}
+(GEX.seur@reductions$pca@feature.loadings %>% as.data.frame)[,1:8] %>% arrange(desc(PC_1) ) %>% head(40)
+```
+
+```{r paged.print=FALSE}
+(GEX.seur@reductions$pca@feature.loadings %>% as.data.frame)[,1:8] %>% arrange(PC_1 ) %>% head(40)
+```
+
+
+
+##### decide PCs to use          
+     
+```{r}
+ElbowPlot(GEX.seur,ndims = 50)
+```
+
+
+```{r}
+PCs <- 1:18
+GEX.seur <- FindNeighbors(GEX.seur, dims = PCs, k.param = 20)
+GEX.seur <- FindClusters(GEX.seur, method = 'igraph' ,resolution = 1.5)
+```
+
+
+#### Run UMAP/tSNE    
+
+```{r}
+GEX.seur <- RunTSNE(GEX.seur, dims=PCs, complexity = 100)
+GEX.seur <- RunUMAP(GEX.seur, dims=PCs, n.neighbors = 50, seed.use = 283)
+```
+
+
+```{r fig.width=11.5,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "tsne", label = T) + DimPlot(GEX.seur, reduction = "umap", label = T)
+```
+
+
+```{r fig.width=7.5,fig.height=6}
+FeaturePlot(GEX.seur, reduction = "umap", features = c("nFeature_RNA","nCount_RNA","percent.mt","percent.rb"))
+```
+
+
+```{r  fig.width=15.5, fig.height=6.4}
+DimPlot(GEX.seur, label = F, pt.size = 0.05, repel = F, reduction = 'tsne', group.by = "FB.info", split.by = "FB.info", 
+        ncol = 5, cols = color.FB)
+DimPlot(GEX.seur, label = F, pt.size = 0.05, repel = F, reduction = 'umap', group.by = "FB.info", split.by = "FB.info", 
+        ncol = 5, cols = color.FB)
+``` 
+
+
+
+
+```{r fig.width=11.5,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "umap", label = T, group.by = "seurat_clusters") +
+  DimPlot(GEX.seur, reduction = "umap", label = F, group.by = "FB.info", cols = color.FB)
+```
+
+
+#### check some markers  
+
+```{r}
+markers.mig <- c("Ptprc",#"Cd3d","Cd3e","Cd19",
+                 "Cd74","Lyz2","Ccl4",
+                 "Aif1","P2ry12","C1qa","Spp1",
+                 "Top2a","Pcna","Mki67","Mcm6",
+                 "Cx3cr1","Il4ra","Il13ra1","Fabp5",
+                 "Hmox1","Ms4a7","Pf4","Tubb3",
+                 "tdTomato-head","tdTomato-mid","tdTomato-tail","CreERT2"
+                 )
+```
+
+
+
+```{r fig.width=12, fig.height=15}
+FeaturePlot(GEX.seur, 
+            features = markers.mig,
+            ncol = 4)
+```
+
+```{r fig.width=9,fig.height=5.4}
+DotPlot(GEX.seur, features = markers.mig, group.by = "FB.info",
+                         cols = c("midnightblue","darkorange1")) +
+                 theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1))#+ scale_y_discrete(limits=rev)
+```
+
+```{r fig.width=9,fig.height=6}
+VlnPlot(GEX.seur, features = c("tdTomato-head","tdTomato-mid","tdTomato-tail","CreERT2"),
+        group.by = "FB.info", ncol = 2)
+```
+
+
+
+```{r fig.width=9,fig.height=5.4}
+DotPlot(GEX.seur, features = markers.mig, group.by = "seurat_clusters",
+                         cols = c("midnightblue","darkorange1")) +
+                 theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1))#+ scale_y_discrete(limits=rev)
+```
+
+
+```{r}
+GEX.seur$sort_clusters <- factor(as.character(GEX.seur$seurat_clusters),
+                                 levels = c(2,0,17,12,15,
+                                            6,5,10,7,14,16,18,
+                                            9,1,4,3,8,11,13,
+                                            21,20,19))
+```
+
+
+
+
+```{r fig.width=7.5, fig.height=6}
+cowplot::plot_grid(
+pheatmap::pheatmap(table(FB.info=GEX.seur$FB.info,
+      clusters=GEX.seur$sort_clusters)[c(3:12),],
+                   main = "Cell Count",
+                   gaps_row = c(3,7),
+      #gaps_col = c(12,13,14),
+                   cluster_rows = F, cluster_cols = F, display_numbers = T, number_format = "%.0f", legend = F, silent = T)$gtable,
+
+pheatmap::pheatmap(100*rowRatio(table(FB.info=GEX.seur$FB.info,
+                                clusters=GEX.seur$sort_clusters)[c(3:12),]),
+                   main = "Cell Ratio",
+                   gaps_row = c(3,7),
+      #gaps_col = c(12,13,14),
+                   cluster_rows = F, cluster_cols = F, display_numbers = T, number_format = "%.1f", legend = F, silent =T)$gtable,
+ncol = 1)
+```
+
+
+### markers       
+
+
+```{r message=FALSE, warning=FALSE, paged.print=TRUE}
+# find markers for every cluster compared to all remaining cells, report only the positive ones
+Idents(GEX.seur) <- "sort_clusters"
+
+#GEX.markers.pre <- FindAllMarkers(GEX.seur, only.pos = TRUE, 
+#                                  min.pct = 0.05,
+#                                  test.use = "MAST",
+#                                  logfc.threshold = 0.25)
+GEX.markers.pre <- read.table("sc10x_LYN.marker.sort1006.csv", header = TRUE, sep = ",")
+GEX.markers.pre %>% group_by(cluster) %>% top_n(n = 8, wt = avg_log2FC)
+```
+
+
+```{r eval=FALSE, include=FALSE}
+write.table(GEX.markers.pre, 
+            "sc10x_LYN.marker.sort1006.csv", 
+            col.names = TRUE,
+            row.names = FALSE,
+            quote = F,
+            sep = ",")
+```
+
+
+```{r}
+GEX.markers.sort <- GEX.markers.pre
+GEX.markers.sort$cluster <- factor(as.character(GEX.markers.sort$cluster),
+                          levels = levels(GEX.seur$sort_clusters))
+
+
+markers.pre_t48 <- (GEX.markers.sort %>% group_by(cluster) %>% 
+                  filter(pct.1>0.1) %>%
+                   top_n(n = 48, wt = avg_log2FC) %>%
+                   ungroup() %>%
+  arrange(desc(avg_log2FC*pct.1),gene) %>%
+                             distinct(gene, .keep_all = TRUE) %>%
+                             arrange(cluster,p_val_adj))$gene
+
+markers.pre_t60 <- (GEX.markers.sort %>% group_by(cluster) %>% 
+                  filter(pct.1>0.1 & gene %in% grep("Rps|Rpl",GEX.markers.sort$gene,invert = T,value = T)) %>%
+                   top_n(n = 60, wt = avg_log2FC) %>%
+                   ungroup() %>%
+  arrange(desc(avg_log2FC*pct.1),gene) %>%
+                             distinct(gene, .keep_all = TRUE) %>%
+                             arrange(cluster,p_val_adj))$gene
+
+markers.pre_t120 <- (GEX.markers.sort %>% group_by(cluster) %>% 
+                  filter(pct.1>0.1 & gene %in% grep("Rps|Rpl",GEX.markers.sort$gene,invert = T,value = T)) %>%
+                   top_n(n = 120, wt = avg_log2FC) %>%
+                   ungroup() %>%
+  arrange(desc(avg_log2FC*pct.1),gene) %>%
+                             distinct(gene, .keep_all = TRUE) %>%
+                             arrange(cluster,p_val_adj))$gene
+```
+
+
+```{r fig.width=7.6, fig.height=9.6}
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[1:64]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[65:128]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[129:192]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[193:256]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[257:320]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[321:384]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[385:448]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[449:512]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[513:576]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[577:640]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[641:704]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+DotPlot(GEX.seur, group.by = "sort_clusters", features = rev(markers.pre_t60[705:772]))  + coord_flip() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6))
+```
+
+
+```{r fig.width=9,fig.height=5.4}
+check.ref1 <- c("Tmem119","Hexb","Slc2a5","P2ry12",
+                "Siglech","Trem2",  # microglia
+                "Mrc1","Lyve1","Cd163","Siglec1",  # CAM
+                "Ly6c2","Ccr2","Plac8","Anxa8",
+                "Nr4a1",  # Monocyte-derived
+                "Flt3","Zbtb46","Batf3","Itgae",
+                "Clec9a",  # 
+                "Tubb3","Actl6b" # locally addede neuron markers
+                )
+
+DotPlot(GEX.seur, features = check.ref1, group.by = "sort_clusters",
+                         cols = c("midnightblue","darkorange1")) +
+                 theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1))#+ scale_y_discrete(limits=rev)
+```
+
+
+```{r}
+markers.Sci2019 <- c("Tmem119","Hexb","Slc2a5","P2ry12","Siglech","Trem2","Sparc","Olfml3",  # Microglia
+                     "Mrc1","Lyve1","Cd163","Siglec1","Pf4","Ms4a7","Cbr2",  # CAMs
+                     "Ly6c2","Ccr2","Plac8","Anxa8","Nr4a1","Mertk","Zbtb26","Cd209a",  # Monocyte-derived
+                     "Flt3","Zbtb46","Batf3","Itgae","Clec9a",  # DCs
+                     "Tubb3"  # local added
+                     )
+```
+
+
+```{r fig.width=12, fig.height=17.5}
+FeaturePlot(GEX.seur, 
+            features = markers.Sci2019,
+            ncol = 4)
+```
+
+
+```{r fig.width=9,fig.height=5.4}
+check.Cell2017 <- c("Hexb","Cst3","P2ry12","Cx3cr1",
+                    "Cd9","Ctsd","Cst7","Lpl",
+                    "Mrc1","Cd163","S100a4","Cd74",
+                    "Cd79b","Rag1","Trbc2","Nkg7",
+                    "S100a9","Camp"
+                    )
+
+DotPlot(GEX.seur, features = check.Cell2017, group.by = "sort_clusters",
+                         cols = c("midnightblue","darkorange1")) +
+                 theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1))#+ scale_y_discrete(limits=rev)
+```
+
+
+## DoubletFinder              
+
+
+```{r}
+library(DoubletFinder)
+```
+
+```{r include=FALSE}
+# to find a better pk
+sweep.res.list <- paramSweep_v3(GEX.seur, PCs = PCs, sct = FALSE) 
+```
+
+```{r echo=FALSE}
+for(i in 1:length(sweep.res.list)){
+  if(length(sweep.res.list[[i]]$pANN[is.nan(sweep.res.list[[i]]$pANN)]) !=0){
+    if(i!=1){
+      sweep.res.list[[i]] <- sweep.res.list[[i-1]]
+    }else(
+      sweep.res.list[[i]] <- sweep.res.list[[i+1]]
+    )
+  }
+}
+sweep.stats <- summarizeSweep(sweep.res.list, GT=FALSE)
+bcmvn <- find.pK(sweep.stats)
+```
+
+```{r echo=FALSE}
+pk_v <- as.numeric(as.character(bcmvn$pK))
+pk_good <- pk_v[bcmvn$BCmetric==max(bcmvn$BCmetric)]
+```
+
+```{r echo=FALSE}
+# specify expected doublet number     
+nExp_poi <- round(0.05*length(colnames(GEX.seur)))
+
+GEX.seur <- doubletFinder_v3(GEX.seur, PCs = PCs, pN = 0.25, pK = pk_good, 
+                             nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+colnames(GEX.seur@meta.data)[ncol(GEX.seur@meta.data)] <- "DoubletFinder0.05"
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# specify expected doublet number     
+nExp_poi <- round(0.1*length(colnames(GEX.seur)))
+
+GEX.seur <- doubletFinder_v3(GEX.seur, PCs = PCs, pN = 0.25, pK = pk_good, 
+                             nExp = nExp_poi, reuse.pANN = FALSE, sct = FALSE)
+colnames(GEX.seur@meta.data)[ncol(GEX.seur@meta.data)] <- "DoubletFinder0.1"
+```
+
+
+
+```{r echo=FALSE, fig.height=4.5, fig.width=10.8}
+DimPlot(GEX.seur, reduction = "umap", group.by = "DoubletFinder0.05") +
+DimPlot(GEX.seur, reduction = "umap", group.by = "DoubletFinder0.1")
+```
+
+
+```{r fig.width=10, fig.height=6.8}
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        ncol = 2,
+        pt.size = 0.05, group.by = "sort_clusters")
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        ncol = 2,
+        pt.size = 0, group.by = "sort_clusters")
+```
+
+
+```{r fig.height=6.8, fig.width=10, message=FALSE, warning=FALSE}
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        ncol = 2,
+        pt.size = 0.05, group.by = "sort_clusters", split.by = "DoubletFinder0.05")
+```
+
+
+```{r fig.height=6.8, fig.width=10, message=FALSE, warning=FALSE}
+VlnPlot(GEX.seur, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"), 
+        ncol = 2,
+        pt.size = 0.05, group.by = "sort_clusters", split.by = "DoubletFinder0.1")
+```
+
+
+```{r}
+table(GEX.seur@meta.data[,c("sort_clusters","DoubletFinder0.05")])
+```
+
+
+
+```{r}
+table(GEX.seur@meta.data[,c("sort_clusters","DoubletFinder0.1")])
+```
+
+
+
+```{r}
+#
+GEX.seur$age <- as.character(GEX.seur$FB.info)
+
+GEX.seur$age[GEX.seur$age %in% c("P06.TDT","P06.MIG","P06.CTR")] <- "P06"
+GEX.seur$age[GEX.seur$age %in% c("P30.PBS.TDT","P30.PBS.MIG","P30.PBS.CTR")] <- "P30.PBS"
+GEX.seur$age[GEX.seur$age %in% c("P30.LPS.TDT1","P30.LPS.TDT2","P30.LPS.MIG","P30.LPS.CTR")] <- "P30.LPS"
+
+GEX.seur$age <- factor(GEX.seur$age, 
+                       levels = c("P06","P30.PBS","P30.LPS"))
+
+#
+GEX.seur$cnt <- as.character(GEX.seur$FB.info)
+
+GEX.seur$cnt[GEX.seur$cnt %in% c("P06.CTR","P30.PBS.CTR","P30.LPS.CTR")] <- "CTR"
+GEX.seur$cnt[GEX.seur$cnt %in% c("P06.MIG","P30.PBS.MIG","P30.LPS.MIG")] <- "MIG"
+GEX.seur$cnt[GEX.seur$cnt %in% c("P06.TDT","P30.PBS.TDT","P30.LPS.TDT1","P30.LPS.TDT2")] <- "TDT"
+
+GEX.seur$cnt <- factor(GEX.seur$cnt,
+                       levels = c("CTR","MIG","TDT"))
+```
+
+
+## preAnno                
+
+
+
+C15: Monocyte-derived (Cd74 hi, MHCII hi)            
+C21: cDC(/Monocyte)              
+C20: BAM (Brain Associated Macrophage)              
+C19: Neuron (should also be mixed with immune)      
+C17: lowUMI to exclude               
+               
+                
+
+
+```{r}
+GEX.seur$preAnno <- as.character(GEX.seur$seurat_clusters)
+
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(2,0,12,
+                                         6,5,10,7,14,16,18,
+                                         9,1,3,4,8,11,13)] <- "Microglia"
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(17)] <- "MIG.lowUMI"
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(15)] <- "Mono"
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(21)] <- "cDC"
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(20)] <- "BAM"
+GEX.seur$preAnno[GEX.seur$preAnno %in% c(19)] <- "Neuron"
+
+GEX.seur$preAnno <- factor(GEX.seur$preAnno,
+                           levels = c("Microglia","MIG.lowUMI",
+                                      "Mono","cDC","BAM","Neuron"
+                                      ))
+```
+
+
+```{r fig.width=11.5,fig.height=4.5}
+DimPlot(GEX.seur, reduction = "umap", label = T, group.by = "seurat_clusters") +
+  DimPlot(GEX.seur, reduction = "umap", label = F, group.by = "preAnno")
+```
+
+
+```{r}
+#saveRDS(GEX.seur, "Spp1tdt.GEX.seur.sort1006.rds")
+```
+
+
+
+## DEGs           
+
+
+Microglia quickly do              
+
+
+   a. CTR vs TDT  in P06/P30.PBS/P30.LPS        
+   
+   b. PBS vs LPS in  P30.CTR/MIG/TDT        
+
+
+```{r}
+GEX.seur
+```
+
+
+```{r}
+GEX.comp <- subset(GEX.seur, subset= preAnno %in% c("Microglia"))
+GEX.comp
+```
+
+
+```{r paged.print=FALSE}
+head(GEX.comp)
+```
+
+
+
+```{r}
+head(GEX.comp$age)
+head(GEX.comp$cnt)
+```
+
+
+
+### comp.a          
+
+
+```{r}
+Idents(GEX.comp) <- "cnt"
+```
+
+
+```{r}
+DEGs.a <- list()
+
+for(nn in levels(GEX.comp$age)){
+  
+  DEGs.a[[nn]] <- FindAllMarkers(subset(GEX.comp, subset = cnt %in% c("CTR","TDT") & age %in% c(nn)),
+                                 assay = "RNA",
+                                 only.pos = T,
+                                 min.pct = 0.05,
+                                 logfc.threshold = 0.1,
+                                 test.use = "MAST")
+  
+  
+}
+```
+
+
+```{r}
+#DEGs.a
+```
+
+
+```{r}
+names(DEGs.a)
+```
+
+
+```{r}
+# save DEGs' table
+df.DEGs.a <- data.frame()
+
+for(nn in names(DEGs.a)){
+  df.DEGs.a <- rbind(df.DEGs.a, data.frame(DEGs.a[[nn]], age = nn))
+}
+
+#write.csv(df.DEGs.a, "DEGs.a.CTRvsTDT_in_ages.csv")
+```
+
+
+
+
+### comp.b           
+
+
+```{r}
+Idents(GEX.comp) <- "age"
+```
+
+
+```{r}
+list.b <- list(P30.CTR = c("P30.PBS.CTR","P30.LPS.CTR"),
+               P30.MIG = c("P30.PBS.MIG","P30.LPS.MIG"),
+               P30.TDT = c("P30.PBS.TDT","P30.LPS.TDT1","P30.LPS.TDT2"))
+list.b
+```
+
+```{r}
+names(list.b)
+```
+
+
+```{r}
+DEGs.b <- list()
+
+for(nn in names(list.b)){
+  
+  DEGs.b[[nn]] <- FindAllMarkers(subset(GEX.comp, subset = age %in% c("P30.PBS","P30.LPS") & FB.info %in% list.b[[nn]]),
+                                 assay = "RNA",
+                                 only.pos = T,
+                                 min.pct = 0.05,
+                                 logfc.threshold = 0.1,
+                                 test.use = "MAST")
+  
+  
+}
+```
+
+
+```{r}
+#DEGs.b
+```
+
+
+```{r}
+names(DEGs.b)
+```
+
+
+```{r}
+# save DEGs' table
+df.DEGs.b <- data.frame()
+
+for(nn in names(DEGs.b)){
+  df.DEGs.b <- rbind(df.DEGs.b, data.frame(DEGs.b[[nn]], condition = nn))
+}
+
+#write.csv(df.DEGs.b, "DEGs.b.PBSvsLPS_in_P30_conditions.csv")
+```
+
+
+
+
+### DEG plot        
+
+
+#### plot.a              
+
+
+```{r}
+pp.DEGs.a <- lapply(DEGs.a, function(x){NA})
+```
+
+```{r}
+names(DEGs.a)
+```
+
+
+
+```{r}
+DEGs.a.combine <- DEGs.a
+DEGs.a.combine <- lapply(DEGs.a.combine, function(x){
+  x[x$cluster=="CTR","avg_log2FC"] <- -x[x$cluster=="CTR","avg_log2FC"]
+  x
+})
+
+```
+
+
+##### P06                
+
+```{r fig.height=6, fig.width=12, message=FALSE, warning=FALSE}
+pp.DEGs.a$P06 <- DEGs.a.combine$P06 %>%
+  mutate(label=ifelse(((p_val_adj < 1e-8 & avg_log2FC<0) | (p_val_adj < 1e-8 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        !grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"CTR",ifelse(p_val_adj<0.05 & avg_log2FC>0,"TDT","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("CTR"="Skyblue",
+                               "TDT"="pink",
+                               "None"="grey")) +
+  theme_classic() + labs(title="P06, CTR vs TDT") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted") + xlim(c(-1,2))
+pp.DEGs.a$P06
+```
+
+
+##### P30.PBS                
+
+```{r fig.width=12, fig.height=6}
+pp.DEGs.a$P30.PBS <- DEGs.a.combine$P30.PBS %>%
+  mutate(label=ifelse(((p_val_adj < 1e-3 & avg_log2FC<0) | (p_val_adj < 1e-3 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        !grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"CTR",ifelse(p_val_adj<0.05 & avg_log2FC>0,"TDT","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("CTR"="Skyblue",
+                               "TDT"="pink",
+                               "None"="grey")) +
+  theme_classic() + labs(title="P30.PBS, CTR vs TDT") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted")#+ xlim(c(-1,2))
+pp.DEGs.a$P30.PBS
+```
+
+
+##### P30.LPS              
+
+```{r fig.width=12, fig.height=6}
+pp.DEGs.a$P30.LPS <- DEGs.a.combine$P30.LPS %>%
+  mutate(label=ifelse(((p_val_adj < 1e-7 & avg_log2FC<0) | (p_val_adj < 1e-7 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        !grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"CTR",ifelse(p_val_adj<0.05 & avg_log2FC>0,"TDT","None")),
+         padj=ifelse(p_val_adj<1e-60,p_val_adj+1e-60,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("CTR"="Skyblue",
+                               "TDT"="pink",
+                               "None"="grey")) +
+  theme_classic() + labs(title="P30.LPS, CTR vs TDT") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted") #+ xlim(c(-1,2))
+pp.DEGs.a$P30.LPS
+```
+
+
+##### stat          
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+cut.padj = 0.05
+cut.log2FC = 0.3   
+  
+cut.pct1 = 0.1
+
+df.DEGs.a %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(age,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame()
+  
+```
+
+```{r}
+pp.stat.DEG <- list()
+```
+
+
+```{r}
+pp.stat.DEG[["a"]] <- df.DEGs.a %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(age,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame() %>%
+  ggplot(aes(x=age, y=up.DEGs, color = cluster)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  geom_text(aes(label = up.DEGs),vjust=-0.21, show.legend = F, position = position_dodge(0.75) ) +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = c("skyblue","pink"), name="") +
+  labs(title=paste0("up.DEGs stat, pct.1>0.1, padj<",cut.padj,", |log2FC|>",cut.log2FC), y = "Number of DEGs") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6),
+        title =element_text(size=12, face='bold'))
+pp.stat.DEG[["a"]]
+```
+
+
+
+#### plot.b               
+
+
+```{r}
+pp.DEGs.b <- lapply(DEGs.b, function(x){NA})
+```
+
+```{r}
+names(DEGs.b)
+```
+
+
+
+```{r}
+DEGs.b.combine <- DEGs.b
+DEGs.b.combine <- lapply(DEGs.b.combine, function(x){
+  x[x$cluster=="P30.PBS","avg_log2FC"] <- -x[x$cluster=="P30.PBS","avg_log2FC"]
+  x
+})
+
+```
+
+
+##### CTR                
+
+```{r fig.height=6, fig.width=12, message=FALSE, warning=FALSE}
+pp.DEGs.b$P30.CTR <- DEGs.b.combine$P30.CTR %>%
+  mutate(label=ifelse(((p_val_adj < 1e-80 & avg_log2FC<0) | (p_val_adj < 1e-80 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        !grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"P30.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"P30.LPS","None")),
+         padj=ifelse(p_val_adj<1e-300,p_val_adj+1e-300,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("P30.PBS"="Skyblue",
+                               "P30.LPS"="pink",
+                               "None"="grey")) +
+  theme_classic() + labs(title="CTR, P30.PBS vs P30.LPS") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted") + xlim(c(-1,2))
+pp.DEGs.b$P30.CTR
+```
+
+
+##### MIG                
+
+```{r fig.height=6, fig.width=12, message=FALSE, warning=FALSE}
+pp.DEGs.b$P30.MIG <- DEGs.b.combine$P30.MIG %>%
+  mutate(label=ifelse(((p_val_adj < 1e-80 & avg_log2FC<0) | (p_val_adj < 1e-80 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        !grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"P30.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"P30.LPS","None")),
+         padj=ifelse(p_val_adj<1e-300,p_val_adj+1e-300,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("P30.PBS"="Skyblue",
+                               "P30.LPS"="pink",
+                               "None"="grey")) +
+  theme_classic() + labs(title="MIG, P30.PBS vs P30.LPS") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted") + xlim(c(-1,2))
+pp.DEGs.b$P30.MIG
+```
+
+
+
+##### TDT               
+
+```{r fig.height=6, fig.width=12, message=FALSE, warning=FALSE}
+pp.DEGs.b$P30.TDT <- DEGs.b.combine$P30.TDT %>%
+  mutate(label=ifelse(((p_val_adj < 1e-80 & avg_log2FC<0) | (p_val_adj < 1e-80 & avg_log2FC>0) | (p_val_adj < 0.05 & abs(avg_log2FC) > 0.5)) &
+                        !grepl("^Gm|^Hsp|^Rps|^Rpl|Rik$|Xist|Tsix|Uty|Ddx3y|Eif2s3y|Kdm5d",gene),gene,""),
+         sig.=ifelse(p_val_adj<0.05 & avg_log2FC<0,"P30.PBS",ifelse(p_val_adj<0.05 & avg_log2FC>0,"P30.LPS","None")),
+         padj=ifelse(p_val_adj<1e-300,p_val_adj+1e-300,p_val_adj)) %>%
+  ggplot(aes(y= -log10(padj), x=avg_log2FC, size=pct.1, label=label,fill=sig.)) +
+  geom_point(shape=21, alpha=0.65) +
+  geom_text_repel(size=2.5, max.overlaps = 500) +
+  scale_fill_manual(values = c("P30.PBS"="Skyblue",
+                               "P30.LPS"="pink",
+                               "None"="grey")) +
+  theme_classic() + labs(title="TDT, P30.PBS vs P30.LPS") +
+  guides(size = guide_legend(order = 2), fill=guide_legend(order = 1, reverse = F)) +
+  geom_vline(xintercept = c(-0.1,0.1), linetype="dotted") + xlim(c(-1,2))
+pp.DEGs.b$P30.TDT
+```
+
+
+##### stat          
+
+```{r message=FALSE, warning=FALSE, paged.print=FALSE}
+cut.padj = 0.05
+cut.log2FC = 0.3   
+  
+cut.pct1 = 0.1
+
+df.DEGs.b %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(condition,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame()
+  
+```
+
+```{r}
+pp.stat.DEG <- list()
+```
+
+
+```{r}
+pp.stat.DEG[["b"]] <- df.DEGs.b %>% filter(p_val_adj < cut.padj & 
+                       abs(avg_log2FC) > cut.log2FC & 
+                       pct.1 > cut.pct1) %>%
+  group_by(condition,cluster) %>%
+  summarise(up.DEGs = n()) %>% as.data.frame() %>%
+  ggplot(aes(x=condition, y=up.DEGs, color = cluster)) +
+  geom_bar(stat="summary", fun="mean", position = position_dodge(0.75), width = 0.58, fill="white") +
+  geom_text(aes(label = up.DEGs),vjust=-0.21, show.legend = F, position = position_dodge(0.75) ) +
+  theme_classic(base_size = 15) +
+  scale_color_manual(values = c("skyblue","pink"), name="") +
+  labs(title=paste0("up.DEGs stat, pct.1>0.1, padj<",cut.padj,", |log2FC|>",cut.log2FC), y = "Number of DEGs") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1, size = 9.6),
+        title =element_text(size=12, face='bold'))
+pp.stat.DEG[["b"]]
+```
+
+## check1017            
+
+```{r}
+GEX.seur <- readRDS("Spp1tdt.GEX.seur.sort1006.rds")
+GEX.seur
+```
+
+```{r fig.width=9,fig.height=6}
+VlnPlot(GEX.seur, features = c("tdTomato-head","tdTomato-mid","tdTomato-tail","CreERT2"),
+        group.by = "FB.info", ncol = 2)
+```
+
+
+```{r}
+GEX.clean <- subset(GEX.seur, subset= preAnno %in% c("Microglia") & DoubletFinder0.05 == "Singlet")
+GEX.clean
+```
+
+```{r}
+#GEX.clean@meta.data
+```
+
+```{r}
+head(GEX.seur$cnt)
+```
+
+```{r}
+head(GEX.seur$FB.info)
+```
+
+
+
+```{r}
+GEX.clean$cnt.new <- factor(paste0(GEX.clean$age,
+                                   ".",
+                                   GEX.clean$cnt),
+                            levels = c("P06.CTR","P06.MIG","P06.TDT",
+                                       "P30.PBS.CTR","P30.PBS.MIG","P30.PBS.TDT",
+                                       "P30.LPS.CTR","P30.LPS.MIG","P30.LPS.TDT"))
+```
+
+```{r}
+scales::show_col(color.FBraw, ncol = 5)
+scales::show_col(color.FB, ncol = 5)
+```
+
+
+```{r}
+color.new <- color.FB[c(10,9,8,3,2,1,7,6,4)]
+scales::show_col(color.new, ncol = 3)
+```
+
+
+
+```{r fig.height=8, fig.width=12, message=FALSE, warning=FALSE}
+VlnPlot(GEX.clean, features = c("Spi1","Spib","Elk1","Elf1",
+                               "Elf2","Elf5","Gabpa","Erg"),
+        group.by = "cnt.new", ncol = 3, pt.size = 0, cols = color.new)& geom_jitter(alpha=0.15, shape=16, width = 0.2, size = 0.02)
+VlnPlot(GEX.clean, features = c("Spi1","Spib","Elk1","Elf1",
+                               "Elf2","Elf5","Gabpa","Erg"),
+        group.by = "cnt.new", ncol = 3, pt.size = 0, cols = color.new) & geom_boxplot(outlier.size = 0, fill="white", width=0.3, size=0.1, alpha=0.55) &
+  stat_summary(fun=mean, geom="point", shape=18, size=2, color="black", alpha=0.55)& ylim(c(0,3.8)) &
+  ggpubr::stat_compare_means(aes(lable = ..p.signif..), 
+                               method = "wilcox.test",
+                               comparisons = list(c("P06.CTR","P06.TDT"),
+                                                  c("P30.PBS.CTR","P30.PBS.TDT"),
+                                                  c("P30.LPS.CTR","P30.LPS.TDT"),
+                                                  c("P06.CTR","P30.PBS.CTR"),
+                                                  c("P30.PBS.CTR","P30.LPS.CTR"),
+                                                  c("P06.TDT","P30.PBS.TDT"),
+                                                  c("P30.PBS.TDT","P30.LPS.TDT"),
+                                                  c("P06.CTR","P06.MIG"),
+                                                  c("P06.MIG","P06.TDT"),
+                                                  c("P30.PBS.CTR","P30.PBS.MIG"),
+                                                  c("P30.PBS.MIG","P30.PBS.TDT"),
+                                                  c("P30.LPS.CTR","P30.LPS.MIG"),
+                                                  c("P30.LPS.MIG","P30.LPS.TDT")),
+                               label.y = c(3.2,3.2,3.2,3.4,3.4,3.6,3.6,
+                                           rep(2.8,6)),
+                               size=2.5
+                               )
+```
+
+
+```{r}
+mapal <- colorRampPalette(RColorBrewer::brewer.pal(4,"Spectral"))(120)
+```
+
+
+```{r fig.height=3, fig.width=6.7, message=FALSE}
+DotPlot(GEX.clean, features = c("Spi1","Spib","Elk1","Elf1",
+                               "Elf2","Elf5","Gabpa","Erg"), group.by = "cnt.new",cols = c("lightgrey","red")
+                         ) +
+                 theme(axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1)) + labs(y="Conditions") + 
+  scale_color_gradientn(colours  = rev(mapal))
+
+```
+
+
+
+```{r fig.width=9,fig.height=6}
+VlnPlot(GEX.clean, features = c("tdTomato-head","tdTomato-mid","tdTomato-tail","CreERT2"),
+        group.by = "cnt.new", ncol = 2, cols = color.new, pt.size = 0) & geom_jitter(alpha=0.25, shape=16, width = 0.3 ,size = 0.22)
+```
+
+
+
+```{r fig.height=6, fig.width=9, message=FALSE, warning=FALSE}
+VlnPlot(GEX.clean, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "percent.rb"),
+        group.by = "cnt.new", ncol = 2, cols = color.new, pt.size = 0) & geom_jitter(alpha=0.15, shape=16, width = 0.3 ,size = 0.12)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
